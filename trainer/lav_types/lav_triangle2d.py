@@ -1,0 +1,28 @@
+import os
+
+import model_fn.model_fn_2d.model_fn_2dtriangle as task_classes
+import util.flags as flags
+from input_fn.input_fn_2d.input_fn_generator_triangle2d import InputFn2DT
+from trainer.lav_base import LavBase
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # set tf log_level to warning(2), default: info(1)
+os.environ['TF_CUDNN_USE_AUTOTUNE'] = '0'  # no tune necessary, short running time
+
+flags.define_string('task_type', 'ModelTriangle', 'Task Type to use choose from: ModelTriangle, ...')
+flags.define_string('graph', 'GraphBase', 'GraphBase should be enough to load saved model')
+flags.define_boolean('complex_phi', False, "if set: a=phi.real, b=phi.imag, instead of a=cos(phi) b=sin(phi)-1"
+                                           "additional flag need for specific input_fn, task, graph")
+flags.define_boolean('plot', False, "plot results in pdf file, (slow)")
+flags.FLAGS.parse_flags()
+
+
+class LavTriangle2D(LavBase):
+    def __init__(self):
+        super(LavTriangle2D, self).__init__()
+        self._input_fn_generator = InputFn2DT(self._flags)
+        self._task = getattr(task_classes, self._flags.task_type)(self._params)
+
+
+if __name__ == "__main__":
+    lav = LavTriangle2D()
+    lav.lav()
