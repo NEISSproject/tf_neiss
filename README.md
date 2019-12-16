@@ -9,7 +9,7 @@ proposed project strcture:
 - ~/devel/projects/<my_current_project>/lists
 - ~/devel/projects/<my_current_project>/models
 
-where ~/devel/projects/<my_current_project> is the python working directory.
+where \~/devel/projects/<my_current_project> is the python working directory.
 and PYTHONPATH=~/devel/projects/<my_current_project>/tf_neiss
 
 ### Virtual python environment
