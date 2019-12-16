@@ -7,9 +7,9 @@ from trainer.trainer_base import TrainerBase
 from input_fn.input_fn_2d.input_fn_generator_polygon2d import InputFnPolygon2D
 import model_fn.model_fn_2d.model_fn_polygon2d as models
 
-# Task parameter
+# Model parameter
 # ===============
-flags.define_string('task_type', 'ModelPolygon', 'Task Type to use choose from: ModelTriangle')
+flags.define_string('model_type', 'ModelPolygon', 'Model Type to use choose from: ModelTriangle')
 flags.define_string('loss_mode', "abs_diff", "'abs_diff', 'softmax_crossentropy")
 flags.define_string('graph', 'GraphConv2MultiFF', 'class name of graph architecture')
 
@@ -28,7 +28,7 @@ class TrainerPolygon2D(TrainerBase):
     def __init__(self):
         super(TrainerPolygon2D, self).__init__()
         self._input_fn_generator = InputFnPolygon2D(self._flags)
-        self._graph = getattr(models, self._flags.task_type)(self._params)
+        self._graph = getattr(models, self._flags.model_type)(self._params)
         self._graph.info()
 
 

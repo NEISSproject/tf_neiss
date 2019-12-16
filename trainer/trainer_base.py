@@ -83,8 +83,8 @@ class TrainerBase(object):
         self.set_run_config()
         flags.print_flags()
         self._input_fn_generator = None
-        self._task_class = None
-        self._task = None
+        self._model_class = None
+        self._model = None
         self._checkpoint_obj_val = None
         self._optimizer_fn = None
         self._optimizer = None
@@ -106,52 +106,52 @@ class TrainerBase(object):
         print("source code path:{}\ncommit-id: {}".format(repos_path, commit_id))
         print("tf-version: {}".format(tf.__version__))
 
-        if not self._task:
-            self._task = self._task_class(self._params)
-        if not self._task.graph_train:
-            self._task.graph_train = self._task.get_graph()
-            self._task.set_optimizer()
-            self._task.graph_train.set_interface(self._input_fn_generator.get_input_fn_val())
-            self._task.graph_train.print_params()
-            self._task.graph_train.summary()
+        if not self._model:
+            self._model = self._model_class(self._params)
+        if not self._model.graph_train:
+            self._model.graph_train = self._model.get_graph()
+            self._model.set_optimizer()
+            self._model.graph_train.set_interface(self._input_fn_generator.get_input_fn_val())
+            self._model.graph_train.print_params()
+            self._model.graph_train.summary()
 
-        checkpoint_obj = tf.train.Checkpoint(step=self._task.graph_train.global_step, optimizer=self._task.optimizer,
-                                             model=self._task.graph_train)
+        checkpoint_obj = tf.train.Checkpoint(step=self._model.graph_train.global_step, optimizer=self._model.optimizer,
+                                             model=self._model.graph_train)
         checkpoint_manager = tf.train.CheckpointManager(checkpoint=checkpoint_obj, directory=flags.FLAGS.checkpoint_dir,
                                                         max_to_keep=1)
 
         if tf.train.get_checkpoint_state(flags.FLAGS.checkpoint_dir):
             print("restore from checkpoint: {}".format(flags.FLAGS.checkpoint_dir))
             checkpoint_obj.restore(tf.train.latest_checkpoint(flags.FLAGS.checkpoint_dir))
-        if self._task.graph_train.global_epoch.numpy() >= self._flags.epochs:
-            print('Loaded model already in epoch {}. Evaluation...'.format(self._task.graph_train.global_epoch.numpy()))
+        if self._model.graph_train.global_epoch.numpy() >= self._flags.epochs:
+            print('Loaded model already in epoch {}. Evaluation...'.format(self._model.graph_train.global_epoch.numpy()))
             self.eval()  # run eval() if epochs reach on first attempt
             self.export()
             return 0
         else:
-            print('starting in epoch ' + str(self._task.graph_train.global_epoch.numpy()))
+            print('starting in epoch ' + str(self._model.graph_train.global_epoch.numpy()))
 
         if not self._train_dataset:
             self._train_dataset = self._input_fn_generator.get_input_fn_train()
 
         while True:
-            if self._task.graph_train.global_epoch.numpy() >= self._flags.epochs:
+            if self._model.graph_train.global_epoch.numpy() >= self._flags.epochs:
                 break
             self.epoch_loss = 0.0
             t1 = time.time()
             for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_train()):
                 # do the _train_step as tf.function to improve performance
                 train_out_dict = self._train_step(input_features, targets)
-                self._task.to_tensorboard_train(train_out_dict, targets, input_features)
+                self._model.to_tensorboard_train(train_out_dict, targets, input_features)
                 self.epoch_loss += train_out_dict["loss"]
                 if batch + 1 >= int(self._flags.samples_per_epoch / self._flags.train_batch_size):
                     # stop endless '.repeat()' dataset with break
                     break
 
             self.epoch_loss /= float(batch + 1.0)
-            self._task.graph_train.global_epoch.assign_add(1)
-            print("\nepoch:   {:10.0f}, optimizer steps: {:6}".format(self._task.graph_train.global_epoch.numpy(),
-                                                                      self._task.graph_train.global_step.numpy()))
+            self._model.graph_train.global_epoch.assign_add(1)
+            print("\nepoch:   {:10.0f}, optimizer steps: {:6}".format(self._model.graph_train.global_epoch.numpy(),
+                                                                      self._model.graph_train.global_step.numpy()))
             print("train-loss:{:8.3f}, samples/seconde: {:1.1f}".format(self.epoch_loss,
                                                                         flags.FLAGS.samples_per_epoch / (
                                                                                     time.time() - t1)))
@@ -159,37 +159,37 @@ class TrainerBase(object):
             checkpoint_manager.save()
             # Evaluation on this checkpoint
             self.eval()
-            self._task.write_tensorboard()
+            self._model.write_tensorboard()
 
         self.export()
 
     @tf.function
     def _train_step(self, input_features, targets):
         with tf.GradientTape() as self.tape:
-            self._task.graph_train._graph_out = self._task.graph_train(input_features, training=True)
-            loss = self._task.loss(predictions=self._task.graph_train._graph_out, targets=targets)
-            gradients = self.tape.gradient(loss, self._task.graph_train.trainable_variables)
-            self._task.optimizer.apply_gradients(zip(gradients, self._task.graph_train.trainable_variables))
-            self._task.graph_train.global_step.assign(self._task.optimizer.iterations)
+            self._model.graph_train._graph_out = self._model.graph_train(input_features, training=True)
+            loss = self._model.loss(predictions=self._model.graph_train._graph_out, targets=targets)
+            gradients = self.tape.gradient(loss, self._model.graph_train.trainable_variables)
+            self._model.optimizer.apply_gradients(zip(gradients, self._model.graph_train.trainable_variables))
+            self._model.graph_train.global_step.assign(self._model.optimizer.iterations)
         return {"loss": tf.reduce_mean(loss)}
 
     def eval(self):
-        if not self._task:
-            self._task = self._task_class(self._params)
-        if not self._task.graph_eval:
-            self._task.graph_eval = self._task.get_graph()
+        if not self._model:
+            self._model = self._model_class(self._params)
+        if not self._model.graph_eval:
+            self._model.graph_eval = self._model.get_graph()
         if not self._checkpoint_obj_val:
-            self._checkpoint_obj_val = tf.train.Checkpoint(model=self._task.graph_eval)
+            self._checkpoint_obj_val = tf.train.Checkpoint(model=self._model.graph_eval)
 
         self._checkpoint_obj_val.restore(tf.train.latest_checkpoint(flags.FLAGS.checkpoint_dir))
         val_loss = 0.0
         t_val = time.time()
         for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_val()):
             input_features = {"fc": input_features["fc"], "fc2": input_features["fc"]}
-            self._task.graph_eval._graph_out = self._task.graph_eval(input_features, training=False)
-            loss = self._task.loss(predictions=self._task.graph_eval._graph_out, targets=targets)
-            self._task.graph_eval._graph_out["loss"] = loss
-            self._task.to_tensorboard_eval(self._task.graph_eval._graph_out, targets, input_features)
+            self._model.graph_eval._graph_out = self._model.graph_eval(input_features, training=False)
+            loss = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets)
+            self._model.graph_eval._graph_out["loss"] = loss
+            self._model.to_tensorboard_eval(self._model.graph_eval._graph_out, targets, input_features)
             val_loss += tf.reduce_mean(loss)
         val_loss /= float(batch + 1.0)
         print(
@@ -199,7 +199,7 @@ class TrainerBase(object):
     def export(self):
         # Export as saved model
         print("Export saved_model to: {}".format(os.path.join(flags.FLAGS.checkpoint_dir, "export")))
-        self._task.graph_train.save(os.path.join(flags.FLAGS.checkpoint_dir, "export"))
+        self._model.graph_train.save(os.path.join(flags.FLAGS.checkpoint_dir, "export"))
 
     def set_run_config(self):
         if flags.FLAGS.force_eager:

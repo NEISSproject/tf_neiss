@@ -7,9 +7,9 @@ from trainer.trainer_base import TrainerBase
 from input_fn.input_fn_2d.input_fn_generator_rp2d import InputFnRegularPolygon2D
 import model_fn.model_fn_2d.model_fn_rp2d as models
 
-# Task parameter
+# Model parameter
 # ===============
-flags.define_string('task_type', 'ModelRegularPolygon', 'Task Type to use choose from: ModelTriangle')
+flags.define_string('model_type', 'ModelRegularPolygon', 'Model Type to use choose from: ModelTriangle')
 flags.define_string('graph', 'GraphConv2MultiFF', 'class name of graph architecture')
 
 flags.define_dict('graph_params', {},
@@ -28,7 +28,7 @@ class TrainerRegularPolygon2D(TrainerBase):
     def __init__(self):
         super(TrainerRegularPolygon2D, self).__init__()
         self._input_fn_generator = InputFnRegularPolygon2D(self._flags)
-        self._model_fn = getattr(models, self._flags.task_type)(self._params)
+        self._model_fn = getattr(models, self._flags.model_type)(self._params)
         self._model_fn.info()
 
 
