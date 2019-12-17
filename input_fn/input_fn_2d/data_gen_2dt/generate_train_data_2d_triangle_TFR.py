@@ -64,7 +64,7 @@ if __name__ == "__main__":
                                   np.arange(np.pi / 2 + har, np.pi - mac, dphi)))
         assert phi_arr.all() == np.arange(0, np.pi, dphi).all()
     else:
-        range_arr = (np.arange(10, dtype=np.float32) + 1.0) / 10.0
+        range_arr = (np.arange(10, dtype=np.float32) + 1.0) / 100.0
         zeros_arr = np.zeros_like(range_arr, dtype=np.float32)
         a = np.concatenate((range_arr, range_arr, zeros_arr), axis=0)
         b = np.concatenate((zeros_arr, range_arr, range_arr), axis=0)
