@@ -21,6 +21,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""  # hide all gpu's until needed
 flags.define_string("data_id", "magic_synthetic_dataset", "select a name unique name for the dataset")
 flags.define_boolean("to_log_file", False,
                      "if set redirect stdout & stderr to this file in data/syntetic_data/<data_id>/<log-file.log>")
+flags.define_boolean("complex_phi", False, "use values for a and b not depending from phi")
 flags.define_string("mode", "val", "select 'val' or 'train'")
 flags.define_list('files_train_val', int, "[int(train_files), int(val_files)]",
                   'files to generate for train data/val data', default_value=[1000, 10])
@@ -53,7 +54,7 @@ if __name__ == "__main__":
     flags.print_flags()
     timer1 = time.time()
     dphi = 0.1
-    complex_phi = True
+    complex_phi = flags.FLAGS.complex_phi
     # complex_phi = False
 
     if not complex_phi:
@@ -63,7 +64,7 @@ if __name__ == "__main__":
                                   np.arange(np.pi / 2 + har, np.pi - mac, dphi)))
         assert phi_arr.all() == np.arange(0, np.pi, dphi).all()
     else:
-        range_arr = (np.arange(10, dtype=np.float32) + 1.0) / 100.0
+        range_arr = (np.arange(10, dtype=np.float32) + 1.0) / 10.0
         zeros_arr = np.zeros_like(range_arr, dtype=np.float32)
         a = np.concatenate((range_arr, range_arr, zeros_arr), axis=0)
         b = np.concatenate((zeros_arr, range_arr, range_arr), axis=0)

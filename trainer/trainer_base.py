@@ -18,7 +18,7 @@ flags.define_integer('samples_per_epoch', 100000, 'Samples shown to the net per 
 #                                         'weights or not,')
 # flags.define_float('clip_grad', 0.0, 'gradient clipping value: for positive values GLOBAL norm clipping is performed,'
 #                                      ' for negative values LOCAL norm clipping is performed (default: %(default)s)')
-flags.define_string('optimizer', 'DecayOptimizer', 'the optimizer used to compute and apply gradients.')
+flags.define_string('optimizer', 'FinalDecayOptimizer', 'the optimizer used to compute and apply gradients.')
 flags.define_dict('optimizer_params', {}, "key=value pairs defining the configuration of the optimizer.")
 flags.define_string('learn_rate_schedule', "decay", 'decay, finaldecay, warmupfinaldecay')
 flags.define_dict("learn_rate_params", {}, "key=value pairs defining the configuration of the learn_rate_schedule.")
@@ -150,11 +150,10 @@ class TrainerBase(object):
 
             self.epoch_loss /= float(batch + 1.0)
             self._model.graph_train.global_epoch.assign_add(1)
-            print("\nepoch:   {:10.0f}, optimizer steps: {:6}".format(self._model.graph_train.global_epoch.numpy(),
+            print("\nEPOCH:   {:10.0f}, optimizer steps: {:9}".format(self._model.graph_train.global_epoch.numpy(),
                                                                       self._model.graph_train.global_step.numpy()))
-            print("train-loss:{:8.3f}, samples/seconde: {:1.1f}".format(self.epoch_loss,
-                                                                        flags.FLAGS.samples_per_epoch / (
-                                                                                    time.time() - t1)))
+            print("train-loss:{:8.3f}, samples/seconde: {:7.1f}, time: {:7.1f}"
+                  .format(self.epoch_loss, flags.FLAGS.samples_per_epoch / (time.time() - t1), time.time() - t1))
             # Save checkpoint each epoch
             checkpoint_manager.save()
             # Evaluation on this checkpoint
@@ -192,9 +191,8 @@ class TrainerBase(object):
             self._model.to_tensorboard_eval(self._model.graph_eval._graph_out, targets, input_features)
             val_loss += tf.reduce_mean(loss)
         val_loss /= float(batch + 1.0)
-        print(
-            "val-loss:{:10.3f}, samples/seconde: {:1.1f}".format(val_loss, (batch + 1) * flags.FLAGS.val_batch_size / (
-                    time.time() - t_val)))
+        print("val-loss:{:10.3f}, samples/seconde: {:1.1f}, time: {:7.1f}"
+              .format(val_loss, (batch + 1) * flags.FLAGS.val_batch_size / (time.time() - t_val), time.time() - t_val))
 
     def export(self):
         # Export as saved model
