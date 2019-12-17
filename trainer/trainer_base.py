@@ -152,7 +152,7 @@ class TrainerBase(object):
             self._model.graph_train.global_epoch.assign_add(1)
             print("\nEPOCH:   {:10.0f}, optimizer steps: {:9}".format(self._model.graph_train.global_epoch.numpy(),
                                                                       self._model.graph_train.global_step.numpy()))
-            print("train-loss:{:8.3f}, samples/seconde: {:7.1f}, time: {:7.1f}"
+            print("train-loss:{:8.3f}, samples/seconde:{:8.1f}, time:{:6.1f}"
                   .format(self.epoch_loss, flags.FLAGS.samples_per_epoch / (time.time() - t1), time.time() - t1))
             # Save checkpoint each epoch
             checkpoint_manager.save()
@@ -191,7 +191,7 @@ class TrainerBase(object):
             self._model.to_tensorboard_eval(self._model.graph_eval._graph_out, targets, input_features)
             val_loss += tf.reduce_mean(loss)
         val_loss /= float(batch + 1.0)
-        print("val-loss:{:10.3f}, samples/seconde: {:1.1f}, time: {:7.1f}"
+        print("val-loss:{:10.3f}, samples/seconde:{:8.1f}, time:{:6.1f}"
               .format(val_loss, (batch + 1) * flags.FLAGS.val_batch_size / (time.time() - t_val), time.time() - t_val))
 
     def export(self):

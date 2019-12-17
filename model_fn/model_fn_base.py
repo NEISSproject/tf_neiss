@@ -3,6 +3,7 @@ import logging
 import os
 
 import tensorflow as tf
+import tensorflow_addons as tfa
 
 import model_fn.util_model_fn.optimizer as optimizers
 import util.flags as flags
