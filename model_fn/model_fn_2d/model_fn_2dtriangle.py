@@ -7,6 +7,7 @@ from itertools import permutations
 import tensorflow as tf
 
 import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.triangle_2d_helper as t2d
+import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.tf_polygon_2d_helper as tf_p2dh
 import model_fn.model_fn_2d.util_2d.graphs_2d as graphs
 from model_fn.model_fn_base import ModelBase
 
@@ -18,6 +19,10 @@ class ModelTriangle(ModelBase):
         self._point_dist = None
         self._summary_object = {"tgt_points": [], "pre_points": [], "ordered_best": [], "unordered_best": []}
         self._graph = self.get_graph()
+        self._scatter_calculator = None
+        if self._flags.loss_mode == "input_diff":
+            self._scatter_calculator = tf_p2dh.Fcalculator(points=tf.constant([[0, 0], [0, 1], [1, 0]], dtype=tf.float64))
+            self._loss = tf.Variable(0.0, dtype=tf.float64)
 
     def get_graph(self):
         return getattr(graphs, self._params['flags'].graph)(self._params)
@@ -44,8 +49,25 @@ class ModelTriangle(ModelBase):
 
     def loss(self, predictions, targets):
         # self._targets['points'] = tf.Print(self._targets['points'], [self._targets['points']])
-        loss = tf.keras.losses.mean_absolute_error(tf.reshape(targets['points'], (-1, 6)),
-                                                   tf.reshape(predictions['pre_points'], (-1, 6)))
+        targets = tf.reshape(targets['points'], (-1, 6))
+        loss = 0.0
+        res_scatter = tf.cast(0.0, dtype=tf.float64)
+        phi_tensor = tf.cast(predictions['fc'][0, 0, :], dtype=tf.float64)
+
+        # for i in range(targets.shape[0]):
+        self._scatter_calculator.update_points(tf.reshape(predictions['pre_points'][0], (3,2)))
+
+        res_scatter_one = self._scatter_calculator.F_of_phi(phi_tensor)
+        res_scatter_one_formatted = tf.expand_dims(tf.stack((phi_tensor, tf.math.real(res_scatter_one), tf.math.imag(res_scatter_one))), axis=0)
+
+
+        loss = tf.keras.losses.mean_absolute_error(res_scatter_one_formatted, predictions['fc'])
+
+        # else:
+        #     loss = tf.keras.losses.mean_absolute_error(tf.reshape(targets['points'], (-1, 6)),
+        #                                                tf.reshape(predictions['pre_points'], (-1, 6)))
+
+
 
         # print("params train batch size", self._params["flags"].train_batch_size)
         # print("points", self._targets['points'])

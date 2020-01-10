@@ -104,12 +104,13 @@ class GraphMultiFF(Graph2D):
                 ff_in += tf.random.normal(tf.shape(ff_in), stddev=self.graph_params["normal_noise"])
 
         ff_final = self._tracked_layers["ff_final"](ff_in)
-
+        self._graph_out = {"pre_points": ff_final, "fc": inputs["fc"]}
         edge_final = None
         if self.graph_params["edge_classifier"]:
             edge_final = self._tracked_layers["edge_classifier"](ff_final)
 
-        self._graph_out = {"pre_points": ff_final, "e_pred": edge_final}
+            self._graph_out = {"pre_points": ff_final, "e_pred": edge_final, "fc": inputs["fc"]}
+
         return self._graph_out
 
 
