@@ -19,7 +19,8 @@ if __name__ == "__main__":
         "numpy==1.17.4",
         "shapely",
         "descartes",
-        "PyPDF2"
+        "PyPDF2",
+        "gensim"
     ]
 
     # here, if a dependency is not met, a DistributionNotFound or VersionConflict

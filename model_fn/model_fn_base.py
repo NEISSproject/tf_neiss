@@ -121,10 +121,10 @@ class ModelBase(object):
         with self.summary_writer_train.as_default():
             tf.summary.scalar("train_loss", self._train_loss_metric.result(), step=self.graph_train.global_epoch)
         with self.summary_writer_train.as_default():
-            tf.summary.scalar("learing_rate",
+            tf.summary.scalar("learning_rate",
                               self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations - 1),
                               step=self.optimizer.iterations - 1)
-            tf.summary.scalar("learing_rate", self.custom_optimizer.get_current_learning_rate(),
+            tf.summary.scalar("learning_rate", self.custom_optimizer.get_current_learning_rate(),
                               step=self.optimizer.iterations)
             # tf.summary.scalar("learning_rate", self.optimizer.)
         with self.summary_writer_eval.as_default():

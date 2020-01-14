@@ -185,7 +185,6 @@ class TrainerBase(object):
         val_loss = 0.0
         t_val = time.time()
         for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_val()):
-            input_features = {"fc": input_features["fc"], "fc2": input_features["fc"]}
             self._model.graph_eval._graph_out = self._model.graph_eval(input_features, training=False)
             loss = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets)
             self._model.graph_eval._graph_out["loss"] = loss
