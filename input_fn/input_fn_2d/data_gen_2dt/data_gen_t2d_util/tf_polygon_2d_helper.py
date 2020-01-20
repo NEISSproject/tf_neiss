@@ -21,7 +21,7 @@ class Fcalculator:
     def __init__(self, points, epsilon=np.array(0.0001), debug=False):
         """points is list of tupel with x,y like [(x1,y1), (x2,y2), (x3,y3),...]"""
         self.epsilon_tf = tf.constant(epsilon, dtype=tf.float64)
-        self.points_tf = tf.Variable(points, dtype=tf.float64, trainable=False)
+        self.points_tf = points
         self._debug = debug
         self._cross = tf.constant([[0.0, 1.0], [-1.0, 0.0]], dtype=tf.float64)
 
@@ -29,7 +29,7 @@ class Fcalculator:
         self.points = points
 
     def update_points(self, points):
-        self.points_tf.assign(tf.cast(points, dtype=tf.float64))
+        self.points_tf = points
 
     def q_of_phi(self, phi):
         phi_tf = tf.cast(phi, dtype=tf.float64)
@@ -47,36 +47,6 @@ class Fcalculator:
         else:
             return q_tf
 
-    # def F_of_qs(self, q, p0_, p1_, c=0.0):
-    #     p0 = np.array(p0_, dtype=np.float64)
-    #     p0_tf = tf.Variable(p0_, dtype=tf.float64)
-    #     p1 = np.array(p1_,  dtype=np.float64)
-    #     p1_tf = tf.Variable(p1_, dtype=tf.float64)
-    #     c = np.array(c)
-    #     c_tf = tf.Variable(c, dtype=tf.float64)
-    #     q_cross = np.array([-q[1], q[0]])
-    #     q_cross_tf = tf.Variable([-q[1], q[0]])
-    #     p0p1 = p1 - p0
-    #     p0p1_tf = p1_tf - p0_tf
-    #     scale = 1.0 / np.abs(np.abs(q[0] ** 2 + q[1] ** 2))
-    #     scale_tf = 1.0 / tf.math.abs(tf.math.pow(tf.math.abs(q[0], 2) + tf.math.pow(q[1], 2)))
-    #
-    #     if scale >= 1000.0 / self.epsilon:
-    #         logger.debug("Scale == NONE")
-    #         polygon = geometry.Polygon(self.points)
-    #         area = np.array(polygon.area, dtype=np.complex)
-    #         logger.debug("area: {}".format(area))
-    #         s_value = area / len(self.points)
-    #     elif np.abs(np.dot(p0p1, q)) >= 0.0001:
-    #         f_p0 = -1.0 * np.exp(1.0j * (np.dot(p0, q) + c))
-    #         f_p1 = -1.0 * np.exp(1.0j * (np.dot(p1, q) + c))
-    #         s_value = scale * np.dot(p0p1, q_cross) * (f_p1 - f_p0) / np.dot(p0p1, q)
-    #     else:
-    #         logger.debug("np.dot(p0p1, q) > epsilon")
-    #         s_value = scale * np.dot(p0p1, q_cross) * -1.0j * np.exp(1.0j * (np.dot(p0, q) + c))
-    #
-    #     logger.debug("s_value: {:1.6f}".format(s_value))
-    #     return s_value
     @tf.function
     def F_of_qs_arr(self, q, p0_, p1_, c=0.0):
         j_tf = tf.cast(tf.complex(0.0, 1.0), dtype=tf.complex128)
@@ -188,9 +158,45 @@ def complex_dot(a, b):
     return tf.einsum('i,i...->...', a, b)
 
 
-if __name__ == "__main__":
-    DEBUG = True
+def debug_track_gradient():
+
     DEBUG = False
+
+    convex_polygon_arr = old_helper.generate_target_polygon(max_edge=3)
+    # convex_polygon_tuple = old_helper.array_to_tuples(convex_polygon_arr)
+    convex_polygon_arr = tf.constant(convex_polygon_arr, dtype=tf.float64)
+    polygon_calculator_target = Fcalculator(points=convex_polygon_arr, debug=DEBUG)
+
+    dphi = 0.0001
+    har = 1.0 / 180.0 * np.pi  # hole_half_angle_rad
+    mac = 1.0 / 180.0 * np.pi  # max_angle_of_view_cut_rad
+    phi_array = np.concatenate((np.arange(0 + har, np.pi / 2 - mac, dphi),
+                              np.arange(np.pi / 2 + har, np.pi - mac, dphi)))
+
+    polygon_scatter_res_target = polygon_calculator_target.F_of_phi(phi=phi_array)
+
+    convex_polygon_tensor =tf.Variable(convex_polygon_arr + np.random.uniform(-0.1, 0.1, convex_polygon_arr.shape))
+
+    optimizer = tf.keras.optimizers.RMSprop()
+    with tf.GradientTape() as tape:
+        polygon_calculator = Fcalculator(points=convex_polygon_tensor, debug=DEBUG)
+        polygon_scatter_res = polygon_calculator.F_of_phi(phi=phi_array)
+        loss = tf.keras.losses.mean_absolute_error(polygon_scatter_res_target, polygon_scatter_res)
+        tf.print(loss)
+        gradient = tape.gradient(loss, convex_polygon_tensor)
+        tf.print(gradient)
+
+
+
+
+if __name__ == "__main__":
+    print("run main")
+    import model_fn.util_model_fn.custom_layers as c_layer
+    # debug_track_gradient()
+    # exit(0)
+
+    DEBUG = True
+    # DEBUG = False
     if DEBUG:
         logging.warning("DEBUG-MODE ON; GRAPH-MODE IS DISABLED!")
         tf.config.experimental_run_functions_eagerly(run_eagerly=True)
@@ -202,12 +208,13 @@ if __name__ == "__main__":
         convex_polygon_tuple = old_helper.array_to_tuples(convex_polygon_arr)
         polygon_calculator = Fcalculator(points=convex_polygon_tuple, debug=DEBUG)
 
-        # phi_array = np.arange(np.pi / 2 - 1.5, np.pi / 2 + 1.5, 0.01)
         dphi = 0.0001
         har = 1.0 / 180.0 * np.pi  # hole_half_angle_rad
         mac = 1.0 / 180.0 * np.pi  # max_angle_of_view_cut_rad
         phi_array = np.concatenate((np.arange(0 + har, np.pi / 2 - mac, dphi),
                                   np.arange(np.pi / 2 + har, np.pi - mac, dphi)))
+
+
         if not DEBUG:
             phi_array = tf.cast(phi_array, dtype=tf.float64)
         # polygon_scatter_res = np.array(
@@ -219,6 +226,16 @@ if __name__ == "__main__":
         else:
             polygon_scatter_res = polygon_scatter_res.astype(dtype=np.complex64)
 
+        print("test reference", np.mean(polygon_scatter_res))
+        print(phi_array.shape)
+        ScatterPolygonLayer1 = c_layer.ScatterPolygonTF(tf.expand_dims(phi_array, axis=0), with_batch_dim=False)
+        Res = ScatterPolygonLayer1(tf.constant(convex_polygon_arr, dtype=tf.float64))
+        print("test Layer", np.mean(Res.numpy()))
+        phi_tf = tf.expand_dims(phi_array, axis=0)
+        fc_one = tf.concat((phi_tf, tf.zeros_like(phi_tf), tf.ones_like(phi_tf)), axis=0)
+        fc_one_b = tf.expand_dims(fc_one, axis=0)
+        fc_batch = tf.concat((fc_one_b,fc_one_b,fc_one_b), axis=0)
+        ScatterPolygonLayerBatch1 = c_layer.ScatterPolygonTF(fc_batch, with_batch_dim=True)
         # print(convex_polygon_arr.shape)
         # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9.5, 14))
         # ax1.plot(phi_array, polygon_scatter_res.real, "+b", label="real_polygon")
@@ -230,4 +247,7 @@ if __name__ == "__main__":
         # ax2.set_aspect(aspect=1.0)
         # plt.show()
     print("Time: {:0.1f}".format(time.time()-t1))
+
+
+
 

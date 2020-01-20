@@ -49,13 +49,14 @@ class ModelTriangle(ModelBase):
 
     def loss(self, predictions, targets):
         # self._targets['points'] = tf.Print(self._targets['points'], [self._targets['points']])
-        targets = tf.reshape(targets['points'], (-1, 6))
-        loss = 0.0
-        res_scatter = tf.cast(0.0, dtype=tf.float64)
+        # print(targets['points'])
+        # targets = tf.reshape(targets['points'], (-1, 6))
+        # loss = 0.0
+        # res_scatter = tf.cast(0.0, dtype=tf.float64)
         phi_tensor = tf.cast(predictions['fc'][0, 0, :], dtype=tf.float64)
 
         # for i in range(targets.shape[0]):
-        self._scatter_calculator.update_points(tf.reshape(predictions['pre_points'][0], (3,2)))
+        self._scatter_calculator.update_points(tf.reshape(predictions['pre_points'][0], (3,2), name="myreshape"))
 
         res_scatter_one = self._scatter_calculator.F_of_phi(phi_tensor)
         res_scatter_one_formatted = tf.expand_dims(tf.stack((phi_tensor, tf.math.real(res_scatter_one), tf.math.imag(res_scatter_one))), axis=0)
@@ -100,6 +101,7 @@ class ModelTriangle(ModelBase):
         #                                                           tf.reshape(self._targets["points"], (-1, 6))))
 
         return tf.reduce_mean(loss)
+
 
     def export_helper(self):
         for train_list in self._params['flags'].train_lists:

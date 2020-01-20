@@ -85,6 +85,7 @@ class TrainerBase(object):
         self._input_fn_generator = None
         self._model_class = None
         self._model = None
+        self._tape = None
         self._checkpoint_obj_val = None
         self._optimizer_fn = None
         self._optimizer = None
@@ -164,10 +165,10 @@ class TrainerBase(object):
 
     @tf.function
     def _train_step(self, input_features, targets):
-        with tf.GradientTape() as self.tape:
+        with tf.GradientTape() as self._tape:
             self._model.graph_train._graph_out = self._model.graph_train(input_features, training=True)
             loss = self._model.loss(predictions=self._model.graph_train._graph_out, targets=targets)
-            gradients = self.tape.gradient(loss, self._model.graph_train.trainable_variables)
+            gradients = self._tape.gradient(loss, self._model.graph_train.trainable_variables)
             self._model.optimizer.apply_gradients(zip(gradients, self._model.graph_train.trainable_variables))
             self._model.graph_train.global_step.assign(self._model.optimizer.iterations)
         return {"loss": tf.reduce_mean(loss)}
