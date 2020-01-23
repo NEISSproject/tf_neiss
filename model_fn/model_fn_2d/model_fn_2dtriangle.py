@@ -3,26 +3,41 @@ import os
 import shutil
 
 import numpy as np
-from itertools import permutations
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.triangle_2d_helper as t2d
-import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.tf_polygon_2d_helper as tf_p2dh
 import model_fn.model_fn_2d.util_2d.graphs_2d as graphs
+import model_fn.util_model_fn.custom_layers as c_layer
 from model_fn.model_fn_base import ModelBase
 
 
 class ModelTriangle(ModelBase):
     def __init__(self, params):
         super(ModelTriangle, self).__init__(params)
+        self.mydtype = tf.float32
         self._targets = None
         self._point_dist = None
         self._summary_object = {"tgt_points": [], "pre_points": [], "ordered_best": [], "unordered_best": []}
         self._graph = self.get_graph()
         self._scatter_calculator = None
-        if self._flags.loss_mode == "input_diff":
-            self._scatter_calculator = tf_p2dh.Fcalculator(points=tf.constant([[0, 0], [0, 1], [1, 0]], dtype=tf.float64))
-            self._loss = tf.Variable(0.0, dtype=tf.float64)
+        self.scatter_polygon_tf = None
+        self._loss = tf.Variable(0.0, dtype=self.mydtype, trainable=False)
+        # log different log types to tensorboard:
+        self.metrics["train"]["loss_input_diff"] = tf.keras.metrics.Mean("loss_input_diff", self.mydtype)
+        self.metrics["eval"]["loss_point_diff"] = tf.keras.metrics.Mean("loss_point_diff", self.mydtype)
+        self.metrics["train"]["loss_point_diff"] = tf.keras.metrics.Mean("loss_point_diff", self.mydtype)
+        self.metrics["eval"]["loss_input_diff"] = tf.keras.metrics.Mean("loss_input_diff", self.mydtype)
+
+    def set_interface(self, val_dataset):
+        build_inputs, build_out = super(ModelTriangle, self).set_interface(val_dataset)
+        # if self._flags.loss_mode == "input_diff":
+        self.scatter_polygon_tf = c_layer.ScatterPolygonTF(fc_tensor=tf.cast(build_inputs[0]["fc"],
+                                                                             dtype=self.mydtype),
+                                                           points_tf=tf.cast(build_inputs[1]["points"],
+                                                                             dtype=self.mydtype),
+                                                           with_batch_dim=True, dtype=self.mydtype)
+        return build_inputs, build_out
 
     def get_graph(self):
         return getattr(graphs, self._params['flags'].graph)(self._params)
@@ -48,31 +63,34 @@ class ModelTriangle(ModelBase):
         self.get_graph().print_params()
 
     def loss(self, predictions, targets):
-        # self._targets['points'] = tf.Print(self._targets['points'], [self._targets['points']])
-        # print(targets['points'])
-        # targets = tf.reshape(targets['points'], (-1, 6))
-        # loss = 0.0
-        # res_scatter = tf.cast(0.0, dtype=tf.float64)
-        phi_tensor = tf.cast(predictions['fc'][0, 0, :], dtype=tf.float64)
+        self._loss = tf.constant(0.0, dtype=self.mydtype)
+        fc = tf.cast(predictions['fc'], dtype=self.mydtype)
+        pre_points = tf.cast(tf.reshape(predictions['pre_points'], [-1, 3, 2]), dtype=self.mydtype)
+        res_scatter = self.scatter_polygon_tf(points_tf=pre_points)
+        loss_input_diff = tf.reduce_mean(tf.keras.losses.mean_squared_error(res_scatter, fc[:, 1:, :]))
+        loss_point_diff = tf.reduce_mean(tf.keras.losses.mean_squared_error(pre_points, targets["points"]))
+        # tf.print("input_diff-loss", loss_input_diff)
+        if self._flags.loss_mode == "input_diff":
+            self._loss += loss_input_diff
+        elif self._flags.loss_mode == "point_diff":
+            self._loss += loss_point_diff
 
-        # for i in range(targets.shape[0]):
-        self._scatter_calculator.update_points(tf.reshape(predictions['pre_points'][0], (3,2), name="myreshape"))
+        self.metrics[self._mode]["loss_input_diff"](loss_input_diff)
+        self.metrics[self._mode]["loss_point_diff"](loss_point_diff)
 
-        res_scatter_one = self._scatter_calculator.F_of_phi(phi_tensor)
-        res_scatter_one_formatted = tf.expand_dims(tf.stack((phi_tensor, tf.math.real(res_scatter_one), tf.math.imag(res_scatter_one))), axis=0)
-
-
-        loss = tf.keras.losses.mean_absolute_error(res_scatter_one_formatted, predictions['fc'])
-
-        # else:
-        #     loss = tf.keras.losses.mean_absolute_error(tf.reshape(targets['points'], (-1, 6)),
-        #                                                tf.reshape(predictions['pre_points'], (-1, 6)))
-
-
-
-        # print("params train batch size", self._params["flags"].train_batch_size)
-        # print("points", self._targets['points'])
-
+        # plt.figure()
+        # plt.plot(fc[0, 0, :], fc[0, 1, :], label="input_real")
+        # plt.plot(fc[0, 0, :], fc[0, 2, :], label="input_imag")
+        # plt.plot(fc[0, 0, :], res_scatter[0, 0, :], label="pred_rec_real")
+        # plt.plot(fc[0, 0, :], res_scatter[0, 1, :], label="pred_rec_imag")
+        # res_scatter = self.scatter_polygon_tf(points_tf=targets["points"])
+        # plt.plot(fc[0, 0, :], res_scatter[0, 0, :], label="input_rec_real")
+        # plt.plot(fc[0, 0, :], res_scatter[0, 1, :], label="input_rec_imag")
+        # print("phi:", fc[0, 0, :])
+        # print("tgt shape", tf.shape(targets["points"]))
+        # print("scatter res shape", tf.shape(res_scatter))
+        # plt.legend()
+        # plt.show()
         # if self._flags.loss_mode == "point3":
         #     loss0 = tf.cast(batch_point3_loss(self._targets['points'], self._graph_out['pre_points'],
         #                                   self._params["flags"].train_batch_size), dtype=tf.float32)
@@ -84,24 +102,8 @@ class ModelTriangle(ModelBase):
         #                                   self._params["flags"].train_batch_size), dtype=tf.float32)
         # else:
         #     raise KeyError("Loss-mode: {} do not exist!".format(self._flags.loss_mode))
-        # loss0 = tf.cast(ordered_point3_loss(self._targets['points'], self._graph_out['pre_points'],
-        #                                   self._params["flags"].train_batch_size), dtype=tf.float32)
-        # target_mom = tf.reduce_mean(
-        #     tf.nn.moments(tf.reshape(self._targets['points'], (self._params["flags"].train_batch_size, 6)), axes=1),
-        #     axis=1)
-        # pred_mom = tf.reduce_mean(
-        #     tf.nn.moments(tf.reshape(self._graph_out['pre_points'], (self._params["flags"].train_batch_size, 6)), axes=1),
-        #     axis=1)
-        # # loss1 = tf.losses.absolute_difference(tf.reduce_sum(tf.abs(self._targets['points'])), tf.reduce_sum(tf.abs(self._graph_out['pre_points'])))
-        # # loss = tf.Print(loss, [loss], message="loss:"
 
-        # loss = tf.Print(loss, [loss, tf.shape(target_mom), target_mom, pred_mom], message="loss0, loss1:")
-        # loss = tf.Print(loss, [loss], message="loss:")
-        # loss = tf.reduce_mean(tf.keras.losses.mean_absolute_error(self._graph_out["pre_points"],
-        #                                                           tf.reshape(self._targets["points"], (-1, 6))))
-
-        return tf.reduce_mean(loss)
-
+        return self._loss
 
     def export_helper(self):
         for train_list in self._params['flags'].train_lists:
@@ -230,8 +232,8 @@ class ModelTriangle(ModelBase):
 
                 ## complexphi
                 # target
-                range_arr = (np.arange(10, dtype=np.float32) + 1.0) / 10.0
-                zeros_arr = np.zeros_like(range_arr, dtype=np.float32)
+                range_arr = (np.arange(10, dtype=self.mydtype) + 1.0) / 10.0
+                zeros_arr = np.zeros_like(range_arr, dtype=self.mydtype)
                 a = np.concatenate((range_arr, range_arr, zeros_arr), axis=0)
                 b = np.concatenate((zeros_arr, range_arr, range_arr), axis=0)
                 phi_arr = a + 1.0j * b

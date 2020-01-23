@@ -112,7 +112,7 @@ class TrainerBase(object):
         if not self._model.graph_train:
             self._model.graph_train = self._model.get_graph()
             self._model.set_optimizer()
-            self._model.graph_train.set_interface(self._input_fn_generator.get_input_fn_val())
+            self._model.set_interface(self._input_fn_generator.get_input_fn_val())
             self._model.graph_train.print_params()
             self._model.graph_train.summary()
 
@@ -140,10 +140,11 @@ class TrainerBase(object):
                 break
             self.epoch_loss = 0.0
             t1 = time.time()
+            self._model.set_mode("train")
             for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_train()):
                 # do the _train_step as tf.function to improve performance
                 train_out_dict = self._train_step(input_features, targets)
-                self._model.to_tensorboard_train(train_out_dict, targets, input_features)
+                self._model.to_tensorboard(train_out_dict, targets, input_features)
                 self.epoch_loss += train_out_dict["loss"]
                 if batch + 1 >= int(self._flags.samples_per_epoch / self._flags.train_batch_size):
                     # stop endless '.repeat()' dataset with break
@@ -157,7 +158,10 @@ class TrainerBase(object):
                   .format(self.epoch_loss, flags.FLAGS.samples_per_epoch / (time.time() - t1), time.time() - t1))
             # Save checkpoint each epoch
             checkpoint_manager.save()
+            self._model.write_tensorboard()
+
             # Evaluation on this checkpoint
+            self._model.set_mode("eval")
             self.eval()
             self._model.write_tensorboard()
 
@@ -168,7 +172,11 @@ class TrainerBase(object):
         with tf.GradientTape() as self._tape:
             self._model.graph_train._graph_out = self._model.graph_train(input_features, training=True)
             loss = self._model.loss(predictions=self._model.graph_train._graph_out, targets=targets)
+            # tf.print("loss:",loss)
             gradients = self._tape.gradient(loss, self._model.graph_train.trainable_variables)
+            # vars = self._model.graph_train.trainable_variables
+            # for i in vars:
+            #     tf.print(i.name, tf.math.reduce_variance(i))
             self._model.optimizer.apply_gradients(zip(gradients, self._model.graph_train.trainable_variables))
             self._model.graph_train.global_step.assign(self._model.optimizer.iterations)
         return {"loss": tf.reduce_mean(loss)}
@@ -185,11 +193,10 @@ class TrainerBase(object):
         val_loss = 0.0
         t_val = time.time()
         for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_val()):
-            input_features = {"fc": input_features["fc"], "fc2": input_features["fc"]}
             self._model.graph_eval._graph_out = self._model.graph_eval(input_features, training=False)
             loss = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets)
             self._model.graph_eval._graph_out["loss"] = loss
-            self._model.to_tensorboard_eval(self._model.graph_eval._graph_out, targets, input_features)
+            self._model.to_tensorboard(self._model.graph_eval._graph_out, targets, input_features)
             val_loss += tf.reduce_mean(loss)
         val_loss /= float(batch + 1.0)
         print("val-loss:{:10.3f}, samples/seconde:{:8.1f}, time:{:6.1f}"

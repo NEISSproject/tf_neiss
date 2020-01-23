@@ -247,7 +247,7 @@ def generate_target_star_polygon(min_radius=3, max_radius=30, edges=3, angle_eps
     z_sum = np.sum(radius_array * np.exp(1.0j * 2 * np.pi * phi_array / 360.0))
     r_last = np.abs(z_sum)
     phi_last = -np.arctan2(z_sum.imag, -z_sum.real)
-
+    # ToDo ensure 3 Points not on one line!
     assert np.isclose(z_sum + r_last * np.exp(1.0j * phi_last), 0.0), "star is not centered: {}; {}; {}".format(z_sum,
                                                                                                                 r_last,
                                                                                                                 phi_last)

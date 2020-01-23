@@ -188,7 +188,6 @@ def debug_track_gradient():
 
 
 
-
 if __name__ == "__main__":
     print("run main")
     import model_fn.util_model_fn.custom_layers as c_layer
@@ -227,15 +226,20 @@ if __name__ == "__main__":
             polygon_scatter_res = polygon_scatter_res.astype(dtype=np.complex64)
 
         print("test reference", np.mean(polygon_scatter_res))
-        print(phi_array.shape)
+        # print(phi_array.shape)
         ScatterPolygonLayer1 = c_layer.ScatterPolygonTF(tf.expand_dims(phi_array, axis=0), with_batch_dim=False)
         Res = ScatterPolygonLayer1(tf.constant(convex_polygon_arr, dtype=tf.float64))
-        print("test Layer", np.mean(Res.numpy()))
+        # print("test Layer", np.mean(Res.numpy()))
+        print("test Layer", np.mean(Res[0].numpy()+ 1.0j * Res[1].numpy()))
         phi_tf = tf.expand_dims(phi_array, axis=0)
         fc_one = tf.concat((phi_tf, tf.zeros_like(phi_tf), tf.ones_like(phi_tf)), axis=0)
         fc_one_b = tf.expand_dims(fc_one, axis=0)
-        fc_batch = tf.concat((fc_one_b,fc_one_b,fc_one_b), axis=0)
+        fc_batch = tf.concat((fc_one_b, fc_one_b, fc_one_b, fc_one_b), axis=0)
+        convex_polygon_arr_b = tf.expand_dims(convex_polygon_arr, axis=0)
+        convex_polygon_arr_batch = tf.concat((convex_polygon_arr_b, convex_polygon_arr_b, convex_polygon_arr_b, convex_polygon_arr_b), axis=0)
         ScatterPolygonLayerBatch1 = c_layer.ScatterPolygonTF(fc_batch, with_batch_dim=True)
+        Res_Batch = ScatterPolygonLayerBatch1(tf.constant(convex_polygon_arr_batch, dtype=tf.float64))
+        print("test BatchLayer", np.mean(Res_Batch[:, 0].numpy() + 1.0j * Res_Batch[:, 1].numpy()))
         # print(convex_polygon_arr.shape)
         # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9.5, 14))
         # ax1.plot(phi_array, polygon_scatter_res.real, "+b", label="real_polygon")
