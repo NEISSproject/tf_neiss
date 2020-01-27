@@ -19,7 +19,9 @@ if __name__ == "__main__":
         "numpy==1.17.4",
         "shapely",
         "descartes",
-        "PyPDF2"
+        "PyPDF2",
+        "tensorflow==2.1",
+        "tensorflow-addons==0.7.1"
     ]
 
     # here, if a dependency is not met, a DistributionNotFound or VersionConflict
