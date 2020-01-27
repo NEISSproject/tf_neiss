@@ -1,5 +1,6 @@
 import logging
 import random
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -246,7 +247,7 @@ def generate_target_star_polygon(min_radius=3, max_radius=30, edges=3, angle_eps
     z_sum = np.sum(radius_array * np.exp(1.0j * 2 * np.pi * phi_array / 360.0))
     r_last = np.abs(z_sum)
     phi_last = -np.arctan2(z_sum.imag, -z_sum.real)
-
+    # ToDo ensure 3 Points not on one line!
     assert np.isclose(z_sum + r_last * np.exp(1.0j * phi_last), 0.0), "star is not centered: {}; {}; {}".format(z_sum,
                                                                                                                 r_last,
                                                                                                                 phi_last)
@@ -534,26 +535,31 @@ def test_star_polygon():
 #     print("{} values per second".format(values / dT))
 
 if __name__ == "__main__":
-    for target in range(4999):
-        convex_polygon_arr = generate_target_polygon()
+    t1 = time.time()
+    for target in range(100):
+        print(target)
+        convex_polygon_arr = generate_target_polygon(max_edge=3)
         convex_polygon_tuple = array_to_tuples(convex_polygon_arr)
         polygon_calculator = Fcalculator(points=convex_polygon_tuple)
 
-        phi_array = np.arange(np.pi / 2 - 1.5, np.pi / 2 + 1.5, 0.01)
-        polygon_scatter_res = np.array(
-            [polygon_calculator.F_of_phi(phi=phi).astype(dtype=np.complex64) for phi in phi_array])
+        dphi = 0.0001
+        har = 1.0 / 180.0 * np.pi  # hole_half_angle_rad
+        mac = 1.0 / 180.0 * np.pi  # max_angle_of_view_cut_rad
+        phi_array = np.concatenate((np.arange(0 + har, np.pi / 2 - mac, dphi),
+                                    np.arange(np.pi / 2 + har, np.pi - mac, dphi)))
+        polygon_scatter_res = np.array(polygon_calculator.F_of_phi(phi=phi_array).astype(dtype=np.complex64))
 
-        print(convex_polygon_arr.shape)
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9.5, 14))
-        ax1.plot(phi_array, polygon_scatter_res.real, "-b", label="real_polygon")
-        ax1.plot(phi_array, polygon_scatter_res.imag, "-y", label="imag_polygon")
-        ax1.plot(phi_array, np.abs(polygon_scatter_res), "-y", label="abs_polygon")
-        ax2.fill(convex_polygon_arr.transpose()[0], convex_polygon_arr.transpose()[1])
-        ax2.set_xlim((-50, 50))
-        ax2.set_ylim((-50, 50))
-        ax2.set_aspect(aspect=1.0)
-        plt.show()
-
+        # print(convex_polygon_arr.shape)
+        # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9.5, 14))
+        # ax1.plot(phi_array, polygon_scatter_res.real, "-b", label="real_polygon")
+        # ax1.plot(phi_array, polygon_scatter_res.imag, "-y", label="imag_polygon")
+        # ax1.plot(phi_array, np.abs(polygon_scatter_res), "-y", label="abs_polygon")
+        # ax2.fill(convex_polygon_arr.transpose()[0], convex_polygon_arr.transpose()[1])
+        # ax2.set_xlim((-50, 50))
+        # ax2.set_ylim((-50, 50))
+        # ax2.set_aspect(aspect=1.0)
+        # plt.show()
+    print("Time: {:0.1f}".format(time.time() - t1))
 # if __name__ == "__main__":
 #     print("run polygon 2d helper")
 #     import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.triangle_2d_helper as triangle_2d_helper

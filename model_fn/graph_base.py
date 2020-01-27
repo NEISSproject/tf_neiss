@@ -5,6 +5,7 @@ class GraphBase(tf.keras.models.Model):
     def __init__(self, params):
         super(GraphBase, self).__init__()
         self.graph_params = dict()
+
         self._flags = params['flags']
         self.global_step = tf.Variable(0, trainable=False, dtype=tf.int64, name="global_step")
         self.global_epoch = tf.Variable(0, trainable=False, dtype=tf.int64, name="global_epoch")
@@ -36,3 +37,4 @@ class GraphBase(tf.keras.models.Model):
         for key in sorted(list(self._graph_out)):
             self.outputs.append(build_out[key])
             self.output_names.append(key)
+

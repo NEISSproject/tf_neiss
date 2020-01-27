@@ -18,7 +18,7 @@ flags.define_integer('samples_per_epoch', 100000, 'Samples shown to the net per 
 #                                         'weights or not,')
 # flags.define_float('clip_grad', 0.0, 'gradient clipping value: for positive values GLOBAL norm clipping is performed,'
 #                                      ' for negative values LOCAL norm clipping is performed (default: %(default)s)')
-flags.define_string('optimizer', 'DecayOptimizer', 'the optimizer used to compute and apply gradients.')
+flags.define_string('optimizer', 'FinalDecayOptimizer', 'the optimizer used to compute and apply gradients.')
 flags.define_dict('optimizer_params', {}, "key=value pairs defining the configuration of the optimizer.")
 flags.define_string('learn_rate_schedule', "decay", 'decay, finaldecay, warmupfinaldecay')
 flags.define_dict("learn_rate_params", {}, "key=value pairs defining the configuration of the learn_rate_schedule.")
@@ -85,6 +85,7 @@ class TrainerBase(object):
         self._input_fn_generator = None
         self._model_class = None
         self._model = None
+        self._tape = None
         self._checkpoint_obj_val = None
         self._optimizer_fn = None
         self._optimizer = None
@@ -111,7 +112,7 @@ class TrainerBase(object):
         if not self._model.graph_train:
             self._model.graph_train = self._model.get_graph()
             self._model.set_optimizer()
-            self._model.graph_train.set_interface(self._input_fn_generator.get_input_fn_val())
+            self._model.set_interface(self._input_fn_generator.get_input_fn_val())
             self._model.graph_train.print_params()
             self._model.graph_train.summary()
 
@@ -139,10 +140,11 @@ class TrainerBase(object):
                 break
             self.epoch_loss = 0.0
             t1 = time.time()
+            self._model.set_mode("train")
             for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_train()):
                 # do the _train_step as tf.function to improve performance
                 train_out_dict = self._train_step(input_features, targets)
-                self._model.to_tensorboard_train(train_out_dict, targets, input_features)
+                self._model.to_tensorboard(train_out_dict, targets, input_features)
                 self.epoch_loss += train_out_dict["loss"]
                 if batch + 1 >= int(self._flags.samples_per_epoch / self._flags.train_batch_size):
                     # stop endless '.repeat()' dataset with break
@@ -150,14 +152,16 @@ class TrainerBase(object):
 
             self.epoch_loss /= float(batch + 1.0)
             self._model.graph_train.global_epoch.assign_add(1)
-            print("\nepoch:   {:10.0f}, optimizer steps: {:6}".format(self._model.graph_train.global_epoch.numpy(),
+            print("\nEPOCH:   {:10.0f}, optimizer steps: {:9}".format(self._model.graph_train.global_epoch.numpy(),
                                                                       self._model.graph_train.global_step.numpy()))
-            print("train-loss:{:8.3f}, samples/seconde: {:1.1f}".format(self.epoch_loss,
-                                                                        flags.FLAGS.samples_per_epoch / (
-                                                                                    time.time() - t1)))
+            print("train-loss:{:8.3f}, samples/seconde:{:8.1f}, time:{:6.1f}"
+                  .format(self.epoch_loss, flags.FLAGS.samples_per_epoch / (time.time() - t1), time.time() - t1))
             # Save checkpoint each epoch
             checkpoint_manager.save()
+            self._model.write_tensorboard()
+
             # Evaluation on this checkpoint
+            self._model.set_mode("eval")
             self.eval()
             self._model.write_tensorboard()
 
@@ -165,10 +169,14 @@ class TrainerBase(object):
 
     @tf.function
     def _train_step(self, input_features, targets):
-        with tf.GradientTape() as self.tape:
+        with tf.GradientTape() as self._tape:
             self._model.graph_train._graph_out = self._model.graph_train(input_features, training=True)
             loss = self._model.loss(predictions=self._model.graph_train._graph_out, targets=targets)
-            gradients = self.tape.gradient(loss, self._model.graph_train.trainable_variables)
+            # tf.print("loss:",loss)
+            gradients = self._tape.gradient(loss, self._model.graph_train.trainable_variables)
+            # vars = self._model.graph_train.trainable_variables
+            # for i in vars:
+            #     tf.print(i.name, tf.math.reduce_variance(i))
             self._model.optimizer.apply_gradients(zip(gradients, self._model.graph_train.trainable_variables))
             self._model.graph_train.global_step.assign(self._model.optimizer.iterations)
         return {"loss": tf.reduce_mean(loss)}
@@ -185,16 +193,14 @@ class TrainerBase(object):
         val_loss = 0.0
         t_val = time.time()
         for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_val()):
-            input_features = {"fc": input_features["fc"], "fc2": input_features["fc"]}
             self._model.graph_eval._graph_out = self._model.graph_eval(input_features, training=False)
             loss = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets)
             self._model.graph_eval._graph_out["loss"] = loss
-            self._model.to_tensorboard_eval(self._model.graph_eval._graph_out, targets, input_features)
+            self._model.to_tensorboard(self._model.graph_eval._graph_out, targets, input_features)
             val_loss += tf.reduce_mean(loss)
         val_loss /= float(batch + 1.0)
-        print(
-            "val-loss:{:10.3f}, samples/seconde: {:1.1f}".format(val_loss, (batch + 1) * flags.FLAGS.val_batch_size / (
-                    time.time() - t_val)))
+        print("val-loss:{:10.3f}, samples/seconde:{:8.1f}, time:{:6.1f}"
+              .format(val_loss, (batch + 1) * flags.FLAGS.val_batch_size / (time.time() - t_val), time.time() - t_val))
 
     def export(self):
         # Export as saved model

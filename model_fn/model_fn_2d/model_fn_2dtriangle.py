@@ -3,21 +3,41 @@ import os
 import shutil
 
 import numpy as np
-from itertools import permutations
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.triangle_2d_helper as t2d
 import model_fn.model_fn_2d.util_2d.graphs_2d as graphs
+import model_fn.util_model_fn.custom_layers as c_layer
 from model_fn.model_fn_base import ModelBase
 
 
 class ModelTriangle(ModelBase):
     def __init__(self, params):
         super(ModelTriangle, self).__init__(params)
+        self.mydtype = tf.float32
         self._targets = None
         self._point_dist = None
         self._summary_object = {"tgt_points": [], "pre_points": [], "ordered_best": [], "unordered_best": []}
         self._graph = self.get_graph()
+        self._scatter_calculator = None
+        self.scatter_polygon_tf = None
+        self._loss = tf.Variable(0.0, dtype=self.mydtype, trainable=False)
+        # log different log types to tensorboard:
+        self.metrics["train"]["loss_input_diff"] = tf.keras.metrics.Mean("loss_input_diff", self.mydtype)
+        self.metrics["eval"]["loss_point_diff"] = tf.keras.metrics.Mean("loss_point_diff", self.mydtype)
+        self.metrics["train"]["loss_point_diff"] = tf.keras.metrics.Mean("loss_point_diff", self.mydtype)
+        self.metrics["eval"]["loss_input_diff"] = tf.keras.metrics.Mean("loss_input_diff", self.mydtype)
+
+    def set_interface(self, val_dataset):
+        build_inputs, build_out = super(ModelTriangle, self).set_interface(val_dataset)
+        # if self._flags.loss_mode == "input_diff":
+        self.scatter_polygon_tf = c_layer.ScatterPolygonTF(fc_tensor=tf.cast(build_inputs[0]["fc"],
+                                                                             dtype=self.mydtype),
+                                                           points_tf=tf.cast(build_inputs[1]["points"],
+                                                                             dtype=self.mydtype),
+                                                           with_batch_dim=True, dtype=self.mydtype)
+        return build_inputs, build_out
 
     def get_graph(self):
         return getattr(graphs, self._params['flags'].graph)(self._params)
@@ -43,13 +63,36 @@ class ModelTriangle(ModelBase):
         self.get_graph().print_params()
 
     def loss(self, predictions, targets):
-        # self._targets['points'] = tf.Print(self._targets['points'], [self._targets['points']])
-        loss = tf.keras.losses.mean_absolute_error(tf.reshape(targets['points'], (-1, 6)),
-                                                   tf.reshape(predictions['pre_points'], (-1, 6)))
+        self._loss = tf.constant(0.0, dtype=self.mydtype)
+        fc = tf.cast(predictions['fc'], dtype=self.mydtype)
+        pre_points = tf.cast(tf.reshape(predictions['pre_points'], [-1, 3, 2]), dtype=self.mydtype)
+        pre_points = make_positiv_orientation(pre_points, dtype=self.mydtype)
+        res_scatter = self.scatter_polygon_tf(points_tf=pre_points)
+        loss_input_diff = tf.reduce_mean(tf.keras.losses.mean_squared_error(res_scatter, fc[:, 1:, :]))
+        targets_oriented = make_positiv_orientation(targets["points"], dtype=self.mydtype)
+        loss_point_diff = tf.reduce_mean(tf.keras.losses.mean_squared_error(pre_points, targets_oriented))
+        # tf.print("input_diff-loss", loss_input_diff)
+        if self._flags.loss_mode == "input_diff":
+            self._loss += loss_input_diff
+        elif self._flags.loss_mode == "point_diff":
+            self._loss += loss_point_diff
 
-        # print("params train batch size", self._params["flags"].train_batch_size)
-        # print("points", self._targets['points'])
+        self.metrics[self._mode]["loss_input_diff"](loss_input_diff)
+        self.metrics[self._mode]["loss_point_diff"](loss_point_diff)
 
+        # plt.figure()
+        # plt.plot(fc[0, 0, :], fc[0, 1, :], label="input_real")
+        # plt.plot(fc[0, 0, :], fc[0, 2, :], label="input_imag")
+        # plt.plot(fc[0, 0, :], res_scatter[0, 0, :], label="pred_rec_real")
+        # plt.plot(fc[0, 0, :], res_scatter[0, 1, :], label="pred_rec_imag")
+        # res_scatter = self.scatter_polygon_tf(points_tf=targets["points"])
+        # plt.plot(fc[0, 0, :], res_scatter[0, 0, :], label="input_rec_real")
+        # plt.plot(fc[0, 0, :], res_scatter[0, 1, :], label="input_rec_imag")
+        # print("phi:", fc[0, 0, :])
+        # print("tgt shape", tf.shape(targets["points"]))
+        # print("scatter res shape", tf.shape(res_scatter))
+        # plt.legend()
+        # plt.show()
         # if self._flags.loss_mode == "point3":
         #     loss0 = tf.cast(batch_point3_loss(self._targets['points'], self._graph_out['pre_points'],
         #                                   self._params["flags"].train_batch_size), dtype=tf.float32)
@@ -61,23 +104,8 @@ class ModelTriangle(ModelBase):
         #                                   self._params["flags"].train_batch_size), dtype=tf.float32)
         # else:
         #     raise KeyError("Loss-mode: {} do not exist!".format(self._flags.loss_mode))
-        # loss0 = tf.cast(ordered_point3_loss(self._targets['points'], self._graph_out['pre_points'],
-        #                                   self._params["flags"].train_batch_size), dtype=tf.float32)
-        # target_mom = tf.reduce_mean(
-        #     tf.nn.moments(tf.reshape(self._targets['points'], (self._params["flags"].train_batch_size, 6)), axes=1),
-        #     axis=1)
-        # pred_mom = tf.reduce_mean(
-        #     tf.nn.moments(tf.reshape(self._graph_out['pre_points'], (self._params["flags"].train_batch_size, 6)), axes=1),
-        #     axis=1)
-        # # loss1 = tf.losses.absolute_difference(tf.reduce_sum(tf.abs(self._targets['points'])), tf.reduce_sum(tf.abs(self._graph_out['pre_points'])))
-        # # loss = tf.Print(loss, [loss], message="loss:"
 
-        # loss = tf.Print(loss, [loss, tf.shape(target_mom), target_mom, pred_mom], message="loss0, loss1:")
-        # loss = tf.Print(loss, [loss], message="loss:")
-        # loss = tf.reduce_mean(tf.keras.losses.mean_absolute_error(self._graph_out["pre_points"],
-        #                                                           tf.reshape(self._targets["points"], (-1, 6))))
-
-        return tf.reduce_mean(loss)
+        return self._loss
 
     def export_helper(self):
         for train_list in self._params['flags'].train_lists:
@@ -206,8 +234,8 @@ class ModelTriangle(ModelBase):
 
                 ## complexphi
                 # target
-                range_arr = (np.arange(10, dtype=np.float32) + 1.0) / 10.0
-                zeros_arr = np.zeros_like(range_arr, dtype=np.float32)
+                range_arr = (np.arange(10, dtype=np.float) + 1.0) / 10.0
+                zeros_arr = np.zeros_like(range_arr, dtype=np.float)
                 a = np.concatenate((range_arr, range_arr, zeros_arr), axis=0)
                 b = np.concatenate((zeros_arr, range_arr, range_arr), axis=0)
                 phi_arr = a + 1.0j * b
@@ -313,3 +341,48 @@ class ModelTriangle(ModelBase):
                     os.remove(pdf)
                 else:
                     logging.warning("Can not delete temporary file, result is probably incomplete!")
+
+
+def get_orientation_batched(batched_point_squence, dtype=tf.float32):
+    """[batch, point, coordinate]
+        [None, None, 2]
+    eg. 12 samples of triangle in 2D ->[12,3,2]
+    -find point with max X, (
+    :raises ValueError if 3 neighbouring points have the same max x-coordinate"""
+    # find max x-coordinate
+    max_x_arg = tf.argmax(batched_point_squence[:, :, 0], axis=1)
+    # construct gather indices for 3 Points with max x-Point centered
+    ranged = tf.range(max_x_arg.shape[0], dtype=tf.int64)
+    max_x_minus = (max_x_arg - 1) % batched_point_squence.shape[1]
+    max_x = (max_x_arg) % batched_point_squence.shape[1]
+    max_x_plus = (max_x_arg + 1) % batched_point_squence.shape[1]
+    indices = tf.stack((ranged, max_x), axis=1)
+    indices_minus = tf.stack((ranged, max_x_minus), axis=1)
+    indices_plus = tf.stack((ranged, max_x_plus), axis=1)
+
+    # construct 3 Points with max x-Point centered
+    # print("indices_minus",indices_minus)
+    Pm = tf.gather_nd(params=batched_point_squence,indices=indices_minus)
+    P = tf.gather_nd(params=batched_point_squence, indices=indices)
+    Pp = tf.gather_nd(params=batched_point_squence,indices=indices_plus)
+
+    # calc scalar product of 'Pm->P'-normal and 'P->Pp'
+    cross = tf.constant([[0.0, -1.0], [1.0, 0.0]], dtype)
+    PmP = P - Pm
+    PPp = Pp - P
+    PPm_cross = tf.matmul(PmP, cross)
+    orientation = tf.einsum("...i,...i->...", PPm_cross, PPp)
+    # check if orientation contains zero which means adjacent 3 points on max x-straight
+    # assertion = tf.assert_greater(tf.abs(orientation), tf.constant(0.0, dtype), message="get orientation failed, probably 3 points on a straight")
+    # with tf.control_dependencies([assertion]):
+    return orientation
+
+
+def make_positiv_orientation(batched_point_squence, dtype=tf.float32):
+    orientation = get_orientation_batched(batched_point_squence)
+    orientation_bool_vec = orientation > tf.constant([0.0], dtype)
+    # print("orientation_bool_vec", orientation_bool_vec)
+    orientation_arr = tf.broadcast_to(tf.expand_dims(tf.expand_dims(orientation_bool_vec, axis=-1), axis=-1), batched_point_squence.shape)
+    # print("orientation_arr",orientation_arr)
+    batched_point_squence = tf.where(orientation_arr, batched_point_squence, tf.reverse(batched_point_squence, axis=[1]))
+    return batched_point_squence
