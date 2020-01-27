@@ -66,9 +66,11 @@ class ModelTriangle(ModelBase):
         self._loss = tf.constant(0.0, dtype=self.mydtype)
         fc = tf.cast(predictions['fc'], dtype=self.mydtype)
         pre_points = tf.cast(tf.reshape(predictions['pre_points'], [-1, 3, 2]), dtype=self.mydtype)
+        pre_points = make_positiv_orientation(pre_points, dtype=self.mydtype)
         res_scatter = self.scatter_polygon_tf(points_tf=pre_points)
         loss_input_diff = tf.reduce_mean(tf.keras.losses.mean_squared_error(res_scatter, fc[:, 1:, :]))
-        loss_point_diff = tf.reduce_mean(tf.keras.losses.mean_squared_error(pre_points, targets["points"]))
+        targets_oriented = make_positiv_orientation(targets["points"], dtype=self.mydtype)
+        loss_point_diff = tf.reduce_mean(tf.keras.losses.mean_squared_error(pre_points, targets_oriented))
         # tf.print("input_diff-loss", loss_input_diff)
         if self._flags.loss_mode == "input_diff":
             self._loss += loss_input_diff
@@ -232,8 +234,8 @@ class ModelTriangle(ModelBase):
 
                 ## complexphi
                 # target
-                range_arr = (np.arange(10, dtype=self.mydtype) + 1.0) / 10.0
-                zeros_arr = np.zeros_like(range_arr, dtype=self.mydtype)
+                range_arr = (np.arange(10, dtype=np.float) + 1.0) / 10.0
+                zeros_arr = np.zeros_like(range_arr, dtype=np.float)
                 a = np.concatenate((range_arr, range_arr, zeros_arr), axis=0)
                 b = np.concatenate((zeros_arr, range_arr, range_arr), axis=0)
                 phi_arr = a + 1.0j * b
@@ -339,3 +341,48 @@ class ModelTriangle(ModelBase):
                     os.remove(pdf)
                 else:
                     logging.warning("Can not delete temporary file, result is probably incomplete!")
+
+
+def get_orientation_batched(batched_point_squence, dtype=tf.float32):
+    """[batch, point, coordinate]
+        [None, None, 2]
+    eg. 12 samples of triangle in 2D ->[12,3,2]
+    -find point with max X, (
+    :raises ValueError if 3 neighbouring points have the same max x-coordinate"""
+    # find max x-coordinate
+    max_x_arg = tf.argmax(batched_point_squence[:, :, 0], axis=1)
+    # construct gather indices for 3 Points with max x-Point centered
+    ranged = tf.range(max_x_arg.shape[0], dtype=tf.int64)
+    max_x_minus = (max_x_arg - 1) % batched_point_squence.shape[1]
+    max_x = (max_x_arg) % batched_point_squence.shape[1]
+    max_x_plus = (max_x_arg + 1) % batched_point_squence.shape[1]
+    indices = tf.stack((ranged, max_x), axis=1)
+    indices_minus = tf.stack((ranged, max_x_minus), axis=1)
+    indices_plus = tf.stack((ranged, max_x_plus), axis=1)
+
+    # construct 3 Points with max x-Point centered
+    # print("indices_minus",indices_minus)
+    Pm = tf.gather_nd(params=batched_point_squence,indices=indices_minus)
+    P = tf.gather_nd(params=batched_point_squence, indices=indices)
+    Pp = tf.gather_nd(params=batched_point_squence,indices=indices_plus)
+
+    # calc scalar product of 'Pm->P'-normal and 'P->Pp'
+    cross = tf.constant([[0.0, -1.0], [1.0, 0.0]], dtype)
+    PmP = P - Pm
+    PPp = Pp - P
+    PPm_cross = tf.matmul(PmP, cross)
+    orientation = tf.einsum("...i,...i->...", PPm_cross, PPp)
+    # check if orientation contains zero which means adjacent 3 points on max x-straight
+    # assertion = tf.assert_greater(tf.abs(orientation), tf.constant(0.0, dtype), message="get orientation failed, probably 3 points on a straight")
+    # with tf.control_dependencies([assertion]):
+    return orientation
+
+
+def make_positiv_orientation(batched_point_squence, dtype=tf.float32):
+    orientation = get_orientation_batched(batched_point_squence)
+    orientation_bool_vec = orientation > tf.constant([0.0], dtype)
+    # print("orientation_bool_vec", orientation_bool_vec)
+    orientation_arr = tf.broadcast_to(tf.expand_dims(tf.expand_dims(orientation_bool_vec, axis=-1), axis=-1), batched_point_squence.shape)
+    # print("orientation_arr",orientation_arr)
+    batched_point_squence = tf.where(orientation_arr, batched_point_squence, tf.reverse(batched_point_squence, axis=[1]))
+    return batched_point_squence
