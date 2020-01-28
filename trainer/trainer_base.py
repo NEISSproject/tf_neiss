@@ -67,7 +67,6 @@ flags.define_boolean("tensorboard", True, "if True: write tensorboard logs")
 flags.define_boolean('force_eager', False, 'ignore tf.function decorator, run every thing eagerly for debugging')
 flags.FLAGS.parse_flags()
 
-
 class TrainerBase(object):
     def __init__(self):
         self._flags = flags.FLAGS
@@ -112,6 +111,7 @@ class TrainerBase(object):
             self._model.graph_train = self._model.get_graph()
             self._model.set_optimizer()
             self._model.graph_train.set_interface(self._input_fn_generator.get_input_fn_val())
+
             self._model.graph_train.print_params()
             self._model.graph_train.summary()
 
@@ -134,6 +134,18 @@ class TrainerBase(object):
         if not self._train_dataset:
             self._train_dataset = self._input_fn_generator.get_input_fn_train()
 
+        train_step_signature = self._model.get_train_step_signature()
+
+        @tf.function(input_signature=train_step_signature)
+        def _train_step_intern(input_features, targets):
+            with tf.GradientTape() as self.tape:
+                self._model.graph_train._graph_out = self._model.graph_train(input_features, training=True)
+                loss = self._model.loss(predictions=self._model.graph_train._graph_out, targets=targets)
+                gradients = self.tape.gradient(loss, self._model.graph_train.trainable_variables)
+                self._model.optimizer.apply_gradients(zip(gradients, self._model.graph_train.trainable_variables))
+                self._model.graph_train.global_step.assign(self._model.optimizer.iterations)
+            return {"loss": tf.reduce_mean(loss)}
+
         while True:
             if self._model.graph_train.global_epoch.numpy() >= self._flags.epochs:
                 break
@@ -141,7 +153,7 @@ class TrainerBase(object):
             t1 = time.time()
             for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_train()):
                 # do the _train_step as tf.function to improve performance
-                train_out_dict = self._train_step(input_features, targets)
+                train_out_dict = _train_step_intern(input_features, targets) #self._train_step(input_features, targets)
                 self._model.to_tensorboard_train(train_out_dict, targets, input_features)
                 self.epoch_loss += train_out_dict["loss"]
                 if batch + 1 >= int(self._flags.samples_per_epoch / self._flags.train_batch_size):
@@ -163,16 +175,6 @@ class TrainerBase(object):
 
         self.export()
 
-    @tf.function
-    def _train_step(self, input_features, targets):
-        with tf.GradientTape() as self.tape:
-            self._model.graph_train._graph_out = self._model.graph_train(input_features, training=True)
-            loss = self._model.loss(predictions=self._model.graph_train._graph_out, targets=targets)
-            gradients = self.tape.gradient(loss, self._model.graph_train.trainable_variables)
-            self._model.optimizer.apply_gradients(zip(gradients, self._model.graph_train.trainable_variables))
-            self._model.graph_train.global_step.assign(self._model.optimizer.iterations)
-        return {"loss": tf.reduce_mean(loss)}
-
     def eval(self):
         if not self._model:
             self._model = self._model_class(self._params)
@@ -184,8 +186,12 @@ class TrainerBase(object):
         self._checkpoint_obj_val.restore(tf.train.latest_checkpoint(flags.FLAGS.checkpoint_dir))
         val_loss = 0.0
         t_val = time.time()
+        call_graph_signature=self._model.get_call_graph_signature()
+        @tf.function(input_signature=call_graph_signature)
+        def call_graph(input_features):
+            return self._model.graph_eval(input_features, training=False)
         for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_val()):
-            self._model.graph_eval._graph_out = self._model.graph_eval(input_features, training=False)
+            self._model.graph_eval._graph_out = call_graph(input_features)#self._model.graph_eval(input_features, training=False)
             loss = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets)
             self._model.graph_eval._graph_out["loss"] = loss
             self._model.to_tensorboard_eval(self._model.graph_eval._graph_out, targets, input_features)

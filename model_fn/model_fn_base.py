@@ -155,3 +155,9 @@ class ModelBase(object):
     def print_evaluate_summary(self):
         """is called at end of lav(load_and_validate), can use graph variables or plot something"""
         pass
+
+    def get_train_step_signature(self):
+        return None
+
+    def get_call_graph_signature(self):
+        return None

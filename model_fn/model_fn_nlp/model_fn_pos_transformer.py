@@ -5,9 +5,9 @@ import model_fn.model_fn_nlp.util_pos.graphs_pos as graphs
 from input_fn.input_fn_nlp.util_input_fn_nlp.StringMapper import get_sm
 from model_fn.model_fn_base import ModelBase
 
-class ModelPOS(ModelBase):
+class ModelTFPOS(ModelBase):
     def __init__(self, params):
-        super(ModelPOS, self).__init__(params)
+        super(ModelTFPOS, self).__init__(params)
         # Indices of NOT dummy class
         self._pos_indices = []
         self.flags = self._params['flags']
@@ -124,6 +124,19 @@ class ModelPOS(ModelBase):
         #print('loss_result',self._eval_loss_metric.result().numpy())
         #print('keras_loss_result',self._eval_keras_loss_metric.result().numpy())
         self._accuracy.update_state(targets['tgt'], graph_out_dict['pred_ids'], tf.sequence_mask(graph_out_dict['sentencelength']))
+
+    def get_train_step_signature(self):
+        train_step_signature= [
+            {'sentence':tf.TensorSpec(shape=[None,None], dtype=tf.int32),'sentencelength':tf.TensorSpec(shape=[None,None], dtype=tf.int32),'tar_inp':tf.TensorSpec(shape=[None, None], dtype=tf.int32)},
+            {'tgt':tf.TensorSpec(shape=[None, None], dtype=tf.int32)},
+            ]
+        return train_step_signature
+
+    def get_call_graph_signature(self):
+        call_graph_signature= [
+            {'sentence':tf.TensorSpec(shape=[None,None], dtype=tf.int32),'sentencelength':tf.TensorSpec(shape=[None,None], dtype=tf.int32),'tar_inp':tf.TensorSpec(shape=[None, None], dtype=tf.int32)}
+            ]
+        return call_graph_signature
 
 
 

@@ -3,7 +3,7 @@ import numpy as np
 
 from model_fn.graph_base import GraphBase
 from model_fn.model_fn_nlp.util_pos.attention import Selfattention, MultiHeadAttention
-from model_fn.model_fn_nlp.util_pos.transformer import EncoderLayer,Encoder
+from model_fn.model_fn_nlp.util_pos.transformer import EncoderLayer,Encoder,Decoder
 
 def create_padding_mask(seq):
     seq_mask=tf.cast(tf.sequence_mask(seq),tf.int32)
@@ -165,11 +165,14 @@ class EncoderFull(GraphBase):
         self.embed_dim=300
         self.num_heads=10
         self.max_seq_len=200
+        self.num_layers=2
+        self.max_pos_encoding=200
+        self.input_vocab_size=0
         self.pos_encoding = positional_encoding(self.max_seq_len,
                                             self.embed_dim)
 
         # initilize keras layer
-        self._tracked_layers["encoder"] = Encoder(2,self.embed_dim,self.num_heads,self.embed_dim,0,200)
+        self._tracked_layers["encoder"] = Encoder(self.num_layers,self.embed_dim,self.num_heads,self.embed_dim,self.input_vocab_size,self.max_pos_encoding)
         self._tracked_layers["last_layer"] = tf.keras.layers.Dense(self.vocab_tag_size, activation=None, name="last_layer")
         self._tracked_layers["softmax"] = tf.keras.layers.Softmax()
 
@@ -190,3 +193,78 @@ class EncoderFull(GraphBase):
         probabilities = self._tracked_layers["softmax"](logits)
         self._graph_out = {"pred_ids": pred_ids, 'probabilities': probabilities, 'logits': logits,"sentencelength": sentencelength}
         return self._graph_out
+
+class Transformer(GraphBase):
+  def __init__(self, params):
+    super(Transformer, self).__init__(params)
+    self._flags = params['flags']
+    self._num_layers=1
+    self._d_model=300
+    self._num_heads=10
+    self._dff=300
+    self._input_vocab_size=params['tok_size']+2
+    self._target_vocab_size=params['num_tags']+2
+    self._pe_input=300
+    self._pe_target=300
+    self._rate=0.1
+
+    self._tracked_layers["encoder"] = Encoder(self._num_layers, self._d_model, self._num_heads, self._dff,
+                           self._input_vocab_size, self._pe_input, self._rate)
+
+    self._tracked_layers["decoder"] = Decoder(self._num_layers, self._d_model, self._num_heads, self._dff,
+                           self._target_vocab_size, self._pe_target, self._rate)
+
+    self._tracked_layers["last_layer"] = tf.keras.layers.Dense(self._target_vocab_size)
+    self._tracked_layers["softmax"] = tf.keras.layers.Softmax()
+
+  def call(self, inputs, training):
+    inp=inputs["sentence"]
+    sentencelength=inputs["sentencelength"]
+    sentencelength=sentencelength[:,0]
+    tar=inputs["tar_inp"]
+
+    enc_padding_mask, look_ahead_mask, dec_padding_mask = self.create_masks(inp, tar)
+
+
+    enc_output = self._tracked_layers["encoder"]({'x':inp,'mask':enc_padding_mask}, training )  # (batch_size, inp_seq_len, d_model)
+
+    # dec_output.shape == (batch_size, tar_seq_len, d_model)
+    dec_output, attention_weights = self._tracked_layers["decoder"] ({
+        'tar':tar, 'enc_output':enc_output, 'look_ahead_mask':look_ahead_mask, 'padding_mask':dec_padding_mask}, training)
+
+    final_output = self._tracked_layers["last_layer"](dec_output)  # (batch_size, tar_seq_len, target_vocab_size)
+    pred_ids = tf.argmax(input=final_output, axis=2, output_type=tf.int32)
+    probabilities = self._tracked_layers["softmax"](final_output)
+    self._graph_out = {"pred_ids": pred_ids, 'probabilities': probabilities, 'logits': final_output,"sentencelength": sentencelength,"attention_weights":attention_weights}
+    return self._graph_out
+
+  def create_masks(self,inp, tar):
+    # Encoder padding mask
+    enc_padding_mask = self.create_padding_mask_trans(inp)
+
+    # Used in the 2nd attention block in the decoder.
+    # This padding mask is used to mask the encoder outputs.
+    dec_padding_mask = self.create_padding_mask_trans(inp)
+
+    # Used in the 1st attention block in the decoder.
+    # It is used to pad and mask future tokens in the input received by
+    # the decoder.
+    look_ahead_mask = self.create_look_ahead_mask(tf.shape(tar)[1])
+    dec_target_padding_mask = self.create_padding_mask_trans(tar)
+    combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
+
+    return enc_padding_mask, combined_mask, dec_padding_mask
+
+  def create_look_ahead_mask(self,size):
+    mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
+    return mask  # (seq_len, seq_len)
+
+
+  def create_padding_mask_trans(self, seq):
+    seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
+
+    # add extra dimensions to add the padding
+    # to the attention logits.
+    return seq[:, tf.newaxis, tf.newaxis, :]
+
+
