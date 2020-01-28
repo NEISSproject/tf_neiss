@@ -20,6 +20,7 @@ if __name__ == "__main__":
         "shapely",
         "descartes",
         "PyPDF2",
+        "gensim"
     ]
 
     # here, if a dependency is not met, a DistributionNotFound or VersionConflict

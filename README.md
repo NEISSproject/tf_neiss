@@ -34,9 +34,10 @@ python tf_neiss/tests/test_requirements.py
 Maybe: Install tensorflow 2.x without gpu-support via pip:
 
 ~~~~{.bash}
-pip install tensorflow
+pip install tensorflow tensorflow-addons
 ~~~~
 For gpu support you need a tensorflow-gpu package compiled with the right cuda and cudnn versions. There is a compiled tensorflow on the neiss-gpu-server which can be used for it.
+You need tensorflow-addons==0.6.0 for tensorflow==2.0 or tensorflow_addons==0.7.0 for tensorflow==2.1
 
 ~~~~{.bash}
 pip install /mnt/data/share/.../<package-name>.whl
