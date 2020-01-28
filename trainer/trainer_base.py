@@ -145,7 +145,8 @@ class TrainerBase(object):
                 gradients = self.tape.gradient(loss, self._model.graph_train.trainable_variables)
                 self._model.optimizer.apply_gradients(zip(gradients, self._model.graph_train.trainable_variables))
                 self._model.graph_train.global_step.assign(self._model.optimizer.iterations)
-            return {"loss": tf.reduce_mean(loss)}
+                self._model.graph_train._graph_out["loss"] = tf.reduce_mean(loss)
+            return self._model.graph_train._graph_out
 
         while True:
             if self._model.graph_train.global_epoch.numpy() >= self._flags.epochs:
@@ -198,7 +199,8 @@ class TrainerBase(object):
         def call_graph(input_features_, targets_):
             self._model.graph_eval._graph_out = self._model.graph_eval(input_features_, training=False)
             loss_ = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets_)
-            return {"loss": tf.reduce_mean(loss_)}
+            self._model.graph_eval._graph_out["loss"] = tf.reduce_mean(loss_)
+            return self._model.graph_eval._graph_out
 
         val_batch_number = 0
         for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_val()):
