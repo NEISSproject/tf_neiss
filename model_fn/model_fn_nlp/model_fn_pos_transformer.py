@@ -20,7 +20,8 @@ class ModelTFPOS(ModelBase):
                 self._pos_indices.append(id)
 
         self._graph = self.get_graph()
-        self._accuracy=tf.keras.metrics.Accuracy()
+        self.metrics["eval"]["accuracy"] = tf.keras.metrics.Accuracy()
+        self.metrics["train"]["accuracy"] = tf.keras.metrics.Accuracy()
         self._keras_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True,reduction='none')
         self._eval_keras_loss_metric = tf.keras.metrics.Mean('eval_keras_loss', dtype=tf.float32)
 
@@ -89,48 +90,16 @@ class ModelTFPOS(ModelBase):
         #Each weight has to multiplied with maxlen/seq_length
         return rvalue
 
-    def write_tensorboard_old(self):
-        """Write metrics to tensorboard-file (it's called after each epoch) and reset tf.keras.metrics"""
-        with self.summary_writer_train.as_default():
-            tf.summary.scalar("train_loss", self._train_loss_metric.result(), step=self.graph_train.global_epoch)
-        with self.summary_writer_train.as_default():
-            tf.summary.scalar("learning_rate",
-                              self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations - 1),
-                              step=self.optimizer.iterations - 1)
-            tf.summary.scalar("learning_rate", self.custom_optimizer.get_current_learning_rate(),
-                              step=self.optimizer.iterations)
-            # tf.summary.scalar("learning_rate", self.optimizer.)
-        with self.summary_writer_eval.as_default():
-            tf.summary.scalar("eval_loss", self._eval_loss_metric.result(), step=self.graph_eval.global_epoch)
-        #with self.summary_writer_eval.as_default():
-        #    tf.summary.scalar("eval_keras_loss", self._eval_keras_loss_metric.result(), step=self.graph_eval.global_epoch)
-        with self.summary_writer_eval.as_default():
-            tf.summary.scalar("eval_accuracy", self._accuracy.result(), step=self.graph_eval.global_epoch)
-        self._eval_loss_metric.reset_states()
-        #self._eval_keras_loss_metric.reset_states()
-        self._train_loss_metric.reset_states()
-        self._accuracy.reset_states()
-
-    def to_tensorboard_train(self, graph_out_dict, targets, input_features):
-        """update tf.keras.metrics with this function (it's called after each train-batch"""
-        self._train_loss_metric(graph_out_dict["loss"])
-
-    def to_tensorboard_eval(self, graph_out_dict, targets, input_features):
-        """update tf.keras.metrics with this function (it's called after each train-batch"""
-        self._eval_loss_metric(graph_out_dict["loss"])
-        #current_keras_loss=self.keras_loss(graph_out_dict, targets)
-        #print('keras_loss',current_keras_loss.numpy())
-        #self._eval_keras_loss_metric(current_keras_loss)
-        #print('loss_result',self._eval_loss_metric.result().numpy())
-        #print('keras_loss_result',self._eval_keras_loss_metric.result().numpy())
-        self._accuracy.update_state(targets['tgt'], graph_out_dict['pred_ids'], tf.sequence_mask(graph_out_dict['sentencelength']))
-
     def get_call_graph_signature(self):
         call_graph_signature = [{'sentence':tf.TensorSpec(shape=[None,None], dtype=tf.int32),
                                  'sentencelength':tf.TensorSpec(shape=[None, None], dtype=tf.int32),
                                  'tar_inp':tf.TensorSpec(shape=[None, None], dtype=tf.int32)},
                                 {'tgt': tf.TensorSpec(shape=[None, None], dtype=tf.int32)}]
         return call_graph_signature
+
+    def to_tensorboard(self, graph_out_dict, targets, input_features):
+        super(ModelTFPOS, self).to_tensorboard(graph_out_dict, targets, input_features)
+        self.metrics[self._mode]["accuracy"].update_state(targets['tgt'], graph_out_dict['pred_ids'], tf.sequence_mask(graph_out_dict['sentencelength']))
 
 
 if __name__ == "__main__":
