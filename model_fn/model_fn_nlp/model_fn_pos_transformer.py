@@ -89,7 +89,7 @@ class ModelTFPOS(ModelBase):
         #Each weight has to multiplied with maxlen/seq_length
         return rvalue
 
-    def write_tensorboard(self):
+    def write_tensorboard_old(self):
         """Write metrics to tensorboard-file (it's called after each epoch) and reset tf.keras.metrics"""
         with self.summary_writer_train.as_default():
             tf.summary.scalar("train_loss", self._train_loss_metric.result(), step=self.graph_train.global_epoch)
