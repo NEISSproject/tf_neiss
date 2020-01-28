@@ -98,7 +98,7 @@ class ModelTFPOS(ModelBase):
         return call_graph_signature
 
     def to_tensorboard(self, graph_out_dict, targets, input_features):
-        super(ModelTFPOS, self).to_tensorboard(graph_out_dict, targets, input_features)
+        self.metrics[self._mode]["loss"](graph_out_dict["loss"])
         self.metrics[self._mode]["accuracy"].update_state(targets['tgt'], graph_out_dict['pred_ids'], tf.sequence_mask(graph_out_dict['sentencelength']))
 
 

@@ -75,8 +75,8 @@ class Encoder(tf.keras.layers.Layer):
 
     # adding embedding and position encoding.
     x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
-    x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-    x += self.pos_encoding[:, :seq_len, :]
+    #x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+    #x += self.pos_encoding[:, :seq_len, :]
 
     x = self.dropout(x, training=training)
 
@@ -151,8 +151,8 @@ class Decoder(tf.keras.layers.Layer):
     attention_weights = {}
 
     x = self.embedding(x)  # (batch_size, target_seq_len, d_model)
-    x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-    x += self.pos_encoding[:, :seq_len, :]
+    #x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+    #x += self.pos_encoding[:, :seq_len, :]
 
     x = self.dropout(x, training=training)
 
