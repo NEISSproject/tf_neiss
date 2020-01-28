@@ -1,5 +1,3 @@
-import glob
-import logging
 import os
 import time
 
@@ -7,6 +5,7 @@ import tensorflow as tf
 
 import util.flags as flags
 from util.misc import get_commit_id, Tee
+
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # Training
@@ -56,7 +55,7 @@ flags.define_integer('val_batch_size', 100, 'number of elements in a val_batch b
 
 # Hardware
 # ========
-# flags.define_boolean('xla', False, 'Disable in case of XLA related errors or performance issues (default: %(default)s)')
+# flags.define_boolean('xla', False, 'Disable in case of XLA related errors or performance issues')
 flags.define_list('gpu_devices', int, 'space seperated list of GPU indices to use. ', " ", [])
 # flags.define_string('dist_strategy', 'mirror', 'DistributionStrategy in MultiGPU scenario. '
 #                                                'mirror - MirroredStrategy, ps - ParameterServerStrategy')
@@ -125,7 +124,8 @@ class TrainerBase(object):
             print("restore from checkpoint: {}".format(flags.FLAGS.checkpoint_dir))
             checkpoint_obj.restore(tf.train.latest_checkpoint(flags.FLAGS.checkpoint_dir))
         if self._model.graph_train.global_epoch.numpy() >= self._flags.epochs:
-            print('Loaded model already in epoch {}. Evaluation...'.format(self._model.graph_train.global_epoch.numpy()))
+            print('Loaded model already in epoch {}. Evaluation...'.format(
+                self._model.graph_train.global_epoch.numpy()))
             self.eval()  # run eval() if epochs reach on first attempt
             self.export()
             return 0
@@ -135,13 +135,13 @@ class TrainerBase(object):
         if not self._train_dataset:
             self._train_dataset = self._input_fn_generator.get_input_fn_train()
 
-        train_step_signature = self._model.get_train_step_signature()
+        train_step_signature = self._model.get_call_graph_signature()
 
         @tf.function(input_signature=train_step_signature)
-        def _train_step_intern(input_features, targets):
+        def _train_step_intern(input_features_, targets_):
             with tf.GradientTape() as self.tape:
-                self._model.graph_train._graph_out = self._model.graph_train(input_features, training=True)
-                loss = self._model.loss(predictions=self._model.graph_train._graph_out, targets=targets)
+                self._model.graph_train._graph_out = self._model.graph_train(input_features_, training=True)
+                loss = self._model.loss(predictions=self._model.graph_train._graph_out, targets=targets_)
                 gradients = self.tape.gradient(loss, self._model.graph_train.trainable_variables)
                 self._model.optimizer.apply_gradients(zip(gradients, self._model.graph_train.trainable_variables))
                 self._model.graph_train.global_step.assign(self._model.optimizer.iterations)
@@ -153,16 +153,18 @@ class TrainerBase(object):
             self.epoch_loss = 0.0
             t1 = time.time()
             self._model.set_mode("train")
+            train_batch_number = 0
             for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_train()):
                 # do the _train_step as tf.function to improve performance
                 train_out_dict = _train_step_intern(input_features, targets)
                 self._model.to_tensorboard(train_out_dict, targets, input_features)
                 self.epoch_loss += train_out_dict["loss"]
+                train_batch_number = batch
                 if batch + 1 >= int(self._flags.samples_per_epoch / self._flags.train_batch_size):
                     # stop endless '.repeat()' dataset with break
                     break
 
-            self.epoch_loss /= float(batch + 1.0)
+            self.epoch_loss /= float(train_batch_number + 1.0)
             self._model.graph_train.global_epoch.assign_add(1)
             print("\nEPOCH:   {:10.0f}, optimizer steps: {:9}".format(self._model.graph_train.global_epoch.numpy(),
                                                                       self._model.graph_train.global_step.numpy()))
@@ -190,19 +192,24 @@ class TrainerBase(object):
         self._checkpoint_obj_val.restore(tf.train.latest_checkpoint(flags.FLAGS.checkpoint_dir))
         val_loss = 0.0
         t_val = time.time()
-        call_graph_signature=self._model.get_call_graph_signature()
+        call_graph_signature = self._model.get_call_graph_signature()
+
         @tf.function(input_signature=call_graph_signature)
-        def call_graph(input_features):
-            return self._model.graph_eval(input_features, training=False)
+        def call_graph(input_features_, targets_):
+            self._model.graph_eval._graph_out = self._model.graph_eval(input_features_, training=False)
+            loss_ = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets_)
+            return {"loss": tf.reduce_mean(loss_)}
+
+        val_batch_number = 0
         for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_val()):
-            self._model.graph_eval._graph_out = call_graph(input_features)#self._model.graph_eval(input_features, training=False)
-            loss = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets)
-            self._model.graph_eval._graph_out["loss"] = loss
-            self._model.to_tensorboard(self._model.graph_eval._graph_out, targets, input_features)
-            val_loss += tf.reduce_mean(loss)
-        val_loss /= float(batch + 1.0)
-        print("val-loss:{:10.3f}, samples/seconde:{:8.1f}, time:{:6.1f}"
-              .format(val_loss, (batch + 1) * flags.FLAGS.val_batch_size / (time.time() - t_val), time.time() - t_val))
+            eval_out_dict = call_graph(input_features, targets)
+            self._model.to_tensorboard(eval_out_dict, targets, input_features)
+            val_loss += eval_out_dict["loss"]
+            val_batch_number = batch
+        val_loss /= float(val_batch_number + 1.0)
+        print("val-loss:{:10.3f}, samples/second:{:8.1f}, time:{:6.1f}"
+              .format(val_loss, (val_batch_number + 1) * flags.FLAGS.val_batch_size /
+                      (time.time() - t_val), time.time() - t_val))
 
     def export(self):
         # Export as saved model

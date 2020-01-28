@@ -125,19 +125,12 @@ class ModelTFPOS(ModelBase):
         #print('keras_loss_result',self._eval_keras_loss_metric.result().numpy())
         self._accuracy.update_state(targets['tgt'], graph_out_dict['pred_ids'], tf.sequence_mask(graph_out_dict['sentencelength']))
 
-    def get_train_step_signature(self):
-        train_step_signature= [
-            {'sentence':tf.TensorSpec(shape=[None,None], dtype=tf.int32),'sentencelength':tf.TensorSpec(shape=[None,None], dtype=tf.int32),'tar_inp':tf.TensorSpec(shape=[None, None], dtype=tf.int32)},
-            {'tgt':tf.TensorSpec(shape=[None, None], dtype=tf.int32)},
-            ]
-        return train_step_signature
-
     def get_call_graph_signature(self):
-        call_graph_signature= [
-            {'sentence':tf.TensorSpec(shape=[None,None], dtype=tf.int32),'sentencelength':tf.TensorSpec(shape=[None,None], dtype=tf.int32),'tar_inp':tf.TensorSpec(shape=[None, None], dtype=tf.int32)}
-            ]
+        call_graph_signature = [{'sentence':tf.TensorSpec(shape=[None,None], dtype=tf.int32),
+                                 'sentencelength':tf.TensorSpec(shape=[None, None], dtype=tf.int32),
+                                 'tar_inp':tf.TensorSpec(shape=[None, None], dtype=tf.int32)},
+                                {'tgt': tf.TensorSpec(shape=[None, None], dtype=tf.int32)}]
         return call_graph_signature
-
 
 
 if __name__ == "__main__":
