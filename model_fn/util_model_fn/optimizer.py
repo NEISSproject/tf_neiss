@@ -1,4 +1,6 @@
 import tensorflow as tf
+import tensorflow_addons as tfa
+
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 
@@ -20,6 +22,8 @@ class DecayOptimizer(object):
         self._optimizer_params["optimizer"] = 'adam'  # learning rate decay, 1.0 means no decay
         self._optimizer_params["learning_rate"] = 0.01  # initial learning rate
         self._optimizer_params["lr_decay_rate"] = 0.99  # learning rate decay, 1.0 means no decay
+        self._optimizer_params["calc_ema"] = False  # enable exponential moving average on trainable variables
+        self._optimizer_params["ema_decay"] = 0.1  # set decay of moving average variables
         self._optimizer_params[
             "learning_circle"] = 3  # number of epochs with same learning rate, except for restart-strategies
         self.update_params()
@@ -54,6 +58,9 @@ class DecayOptimizer(object):
                 self._keras_optimizer = tf.keras.optimizers.RMSprop(lr)
             if self._optimizer_params["optimizer"] == 'sgd':
                 self._keras_optimizer = tf.keras.optimizers.SGD(lr)
+        if self._optimizer_params["calc_ema"]:
+            self._keras_optimizer = tfa.optimizers.MovingAverage(self._keras_optimizer,
+                                                                 average_decay=self._optimizer_params["ema_decay"])
         return self._keras_optimizer
 
     def print_params(self):

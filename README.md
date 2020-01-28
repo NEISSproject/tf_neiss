@@ -1,5 +1,5 @@
 # tf_neiss
-supervised learning framework based on tensorflow 2.0
+supervised learning framework based on tensorflow 2.x
 
 ## Setup
 ### File structure
@@ -31,7 +31,7 @@ WITHIN the virtualenv install required pip-packages:
 ~~~~{.bash}
 python tf_neiss/tests/test_requirements.py
 ~~~~
-Maybe: Install tensorflow 2.0 without gpu-support via pip:
+Maybe: Install tensorflow 2.x without gpu-support via pip:
 
 ~~~~{.bash}
 pip install tensorflow
@@ -52,7 +52,7 @@ If everything is set up correct, it will generate a few train data, train a mode
 
 As a result there is a pdf-file with triangles and their predictions in the upper plot. You should see first attemps of a reconsturction (far from good).
 - comment the Clean Up Part to inspect intermediate results like model or tensorboard logs.
-- This test is an example how you can integrade your own model in this framework.
+- This test is an example which helps you to integrade your own model in this framework.
 - Only files used in the test are up to date for now. There are some function not used yet or deprecated, just ignore them.
 
 #### Test with gpu

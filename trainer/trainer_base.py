@@ -67,6 +67,7 @@ flags.define_boolean("tensorboard", True, "if True: write tensorboard logs")
 flags.define_boolean('force_eager', False, 'ignore tf.function decorator, run every thing eagerly for debugging')
 flags.FLAGS.parse_flags()
 
+
 class TrainerBase(object):
     def __init__(self):
         self._flags = flags.FLAGS
@@ -84,6 +85,7 @@ class TrainerBase(object):
         self._input_fn_generator = None
         self._model_class = None
         self._model = None
+        self._tape = None
         self._checkpoint_obj_val = None
         self._optimizer_fn = None
         self._optimizer = None
@@ -110,8 +112,7 @@ class TrainerBase(object):
         if not self._model.graph_train:
             self._model.graph_train = self._model.get_graph()
             self._model.set_optimizer()
-            self._model.graph_train.set_interface(self._input_fn_generator.get_input_fn_val())
-
+            self._model.set_interface(self._input_fn_generator.get_input_fn_val())
             self._model.graph_train.print_params()
             self._model.graph_train.summary()
 
@@ -151,10 +152,11 @@ class TrainerBase(object):
                 break
             self.epoch_loss = 0.0
             t1 = time.time()
+            self._model.set_mode("train")
             for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_train()):
                 # do the _train_step as tf.function to improve performance
-                train_out_dict = _train_step_intern(input_features, targets) #self._train_step(input_features, targets)
-                self._model.to_tensorboard_train(train_out_dict, targets, input_features)
+                train_out_dict = _train_step_intern(input_features, targets)
+                self._model.to_tensorboard(train_out_dict, targets, input_features)
                 self.epoch_loss += train_out_dict["loss"]
                 if batch + 1 >= int(self._flags.samples_per_epoch / self._flags.train_batch_size):
                     # stop endless '.repeat()' dataset with break
@@ -162,14 +164,16 @@ class TrainerBase(object):
 
             self.epoch_loss /= float(batch + 1.0)
             self._model.graph_train.global_epoch.assign_add(1)
-            print("\nepoch:   {:10.0f}, optimizer steps: {:6}".format(self._model.graph_train.global_epoch.numpy(),
+            print("\nEPOCH:   {:10.0f}, optimizer steps: {:9}".format(self._model.graph_train.global_epoch.numpy(),
                                                                       self._model.graph_train.global_step.numpy()))
-            print("train-loss:{:8.3f}, samples/seconde: {:1.1f}".format(self.epoch_loss,
-                                                                        flags.FLAGS.samples_per_epoch / (
-                                                                                    time.time() - t1)))
+            print("train-loss:{:8.3f}, samples/seconde:{:8.1f}, time:{:6.1f}"
+                  .format(self.epoch_loss, flags.FLAGS.samples_per_epoch / (time.time() - t1), time.time() - t1))
             # Save checkpoint each epoch
             checkpoint_manager.save()
+            self._model.write_tensorboard()
+
             # Evaluation on this checkpoint
+            self._model.set_mode("eval")
             self.eval()
             self._model.write_tensorboard()
 
@@ -194,12 +198,11 @@ class TrainerBase(object):
             self._model.graph_eval._graph_out = call_graph(input_features)#self._model.graph_eval(input_features, training=False)
             loss = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets)
             self._model.graph_eval._graph_out["loss"] = loss
-            self._model.to_tensorboard_eval(self._model.graph_eval._graph_out, targets, input_features)
+            self._model.to_tensorboard(self._model.graph_eval._graph_out, targets, input_features)
             val_loss += tf.reduce_mean(loss)
         val_loss /= float(batch + 1.0)
-        print(
-            "val-loss:{:10.3f}, samples/seconde: {:1.1f}".format(val_loss, (batch + 1) * flags.FLAGS.val_batch_size / (
-                    time.time() - t_val)))
+        print("val-loss:{:10.3f}, samples/seconde:{:8.1f}, time:{:6.1f}"
+              .format(val_loss, (batch + 1) * flags.FLAGS.val_batch_size / (time.time() - t_val), time.time() - t_val))
 
     def export(self):
         # Export as saved model

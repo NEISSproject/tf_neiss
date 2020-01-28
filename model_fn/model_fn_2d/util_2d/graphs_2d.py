@@ -1,11 +1,7 @@
-import logging
-import collections
 import tensorflow as tf
-import numpy as np
 
-from model_fn.graph_base import GraphBase
 import model_fn.util_model_fn.keras_compatible_layers as layers
-
+from model_fn.graph_base import GraphBase
 from util.flags import update_params
 
 
@@ -34,7 +30,6 @@ class KerasGraphFF3(Graph2D):
         self.graph_params["ff_hidden_3"] = 128
         self.graph_params = update_params(self.graph_params, self._flags.graph_params, "graph")
         # initilize keras layer
-        self._tracked_layers["add_layer"] = tf.keras.layers.Add()
         self._tracked_layers["flatten_1"] = tf.keras.layers.Flatten()
         self._tracked_layers["ff_layer_1"] = tf.keras.layers.Dense(self.graph_params["ff_hidden_1"],
                                                                    activation=tf.nn.leaky_relu, name="ff_layer_1")
@@ -54,8 +49,7 @@ class KerasGraphFF3(Graph2D):
         ff_layer_3_out = self._tracked_layers["ff_layer_3"](ff_layer_2_out)
         last_layer_out = self._tracked_layers["last_layer"](ff_layer_3_out)
         final_out = self._tracked_layers["flatten_2"](last_layer_out)
-        final_out2 = self._tracked_layers["add_layer"]([final_out, final_out])
-        self._graph_out = {"pre_points": final_out, "pre_points2": final_out2}
+        self._graph_out = {"pre_points": final_out, "pre_points2": final_out}
         return self._graph_out
 
 
@@ -79,50 +73,44 @@ class GraphMultiFF(Graph2D):
 
         self.graph_params = update_params(self.graph_params, self._flags.graph_params, "graph")
 
+        # initilize keras layer
+        self._tracked_layers["flatten_1"] = tf.keras.layers.Flatten()
+        # loop over all number in self.graph_params["dense_layers"]
+        for layer_index, n_hidden in enumerate(self.graph_params["dense_layers"]):
+            name = "ff_{}".format(layer_index + 1)
+            self._tracked_layers[name] = tf.keras.layers.Dense(n_hidden, activation=tf.nn.leaky_relu, name=name)
+
+        self._tracked_layers["ff_final"] = tf.keras.layers.Dense(self.graph_params["nhidden_dense_final"],
+                                                                 activation=None, name="ff_final")
+
+        if self.graph_params["edge_classifier"]:
+            self._tracked_layers["edge_classifier"] = tf.keras.layers.Dense(self.graph_params["nhidden_max_edges"],
+                                                                            activation=tf.nn.softmax,
+                                                                            name="edge_classifier")
+
     @tf.function
     def call(self, inputs, training=False, build=None):
-        ff_in = layers.reshape(tf.cast(inputs['fc'], dtype=tf.float32),
-                                                (-1, int(self.fc_size_0 * self._flags.data_len)))
-
-        if training and self.graph_params["uniform_noise"] > 0:
-            ff_in += tf.random.uniform(tf.shape(ff_in), minval=-self.graph_params["uniform_noise"],
-                                       maxval=self.graph_params["uniform_noise"])
-        if training and self.graph_params["normal_noise"] > 0:
-            ff_in += tf.random.normal(tf.shape(ff_in), stddev=self.graph_params["normal_noise"])
-
+        ff_in = self._tracked_layers["flatten_1"](inputs["fc"])
         if training and self.graph_params["input_dropout"] > 0:
-            print(self.graph_params["input_dropout"])
-            ff_in = layers.dropout(ff_in, rate=self.graph_params["input_dropout"], keras_model=self)
+            ff_in = tf.nn.dropout(ff_in, rate=self.graph_params["input_dropout"])
+        # loop over all number in self.graph_params["dense_layers"]
+        for layer_index, n_hidden in enumerate(self.graph_params["dense_layers"]):
+            name = "ff_{}".format(layer_index + 1)
+            ff_in = self._tracked_layers[name](ff_in)
+            if training and self.graph_params["uniform_noise"] > 0:
+                ff_in += tf.random.uniform(tf.shape(ff_in), minval=-self.graph_params["uniform_noise"],
+                                           maxval=self.graph_params["uniform_noise"])
+            if training and self.graph_params["normal_noise"] > 0:
+                ff_in += tf.random.normal(tf.shape(ff_in), stddev=self.graph_params["normal_noise"])
 
-        for index, nhidden in enumerate(self.graph_params["dense_layers"]):
-
-            ff_in = layers.ff_layer(inputs=ff_in,
-                                                     outD=nhidden,
-                                                     is_training=training,
-                                                     activation=layers.relu,
-                                                     use_bn=self.graph_params["batch_norm"],
-                                                     name="ff_{}".format(index + 1),
-                                                     keras_model=self)
-
-            if training and self.graph_params["input_dropout"] > 0:
-                ff_in = layers.dropout(ff_in, rate=self.graph_params["ff_dropout"], keras_model=self)
-
-        ff_final = layers.ff_layer(inputs=ff_in,
-                                                    outD=self.graph_params["nhidden_dense_final"],
-                                                    is_training=training,
-                                                    use_bn=self.graph_params["batch_norm"],
-                                                    activation=None,
-                                                    name="ff_final",
-                                                    keras_model=self)
+        ff_final = self._tracked_layers["ff_final"](ff_in)
+        self._graph_out = {"pre_points": ff_final, "fc": inputs["fc"]}
         edge_final = None
         if self.graph_params["edge_classifier"]:
-            edge_final = layers.ff_layer(inputs=ff_in,
-                                                          outD=self.graph_params["nhidden_max_edges"] - 3,  # at least a triangle!
-                                                          is_training=training,
-                                                          activation=layers.softmax,
-                                                          name="edge_final")
-        # ff_final = tf.compat.v1.Print(ff_final, [tf.shape(ff_final)])
-        self._graph_out = {"pre_points": ff_final, "e_pred": edge_final}
+            edge_final = self._tracked_layers["edge_classifier"](ff_final)
+
+            self._graph_out = {"pre_points": ff_final, "e_pred": edge_final, "fc": inputs["fc"]}
+
         return self._graph_out
 
 
@@ -348,26 +336,26 @@ class GraphConv2MultiFF(Graph2D):
             kernel_dims = [3, 6, 1, 8]
             conv_strides = [1, 1, 3, 1]
             conv1 = layers.conv2d_bn_lrn_drop(inputs=fc, kernel_shape=kernel_dims, is_training=is_training,
-                                                               strides=conv_strides, activation=conv_layer_activation_fn,
-                                                               use_bn=False, use_lrn=False, padding='SAME')
+                                              strides=conv_strides, activation=conv_layer_activation_fn,
+                                              use_bn=False, use_lrn=False, padding='SAME')
             conv1_len = int((self._flags.data_len + conv_strides[2] - 1) / conv_strides[2])
         # Conv2
         with tf.compat.v1.variable_scope("conv2"):
             kernel_dims = [1, 8, 8, 16]
             conv_strides = [1, 1, 6, 1]
             conv2 = layers.conv2d_bn_lrn_drop(inputs=conv1, kernel_shape=kernel_dims, is_training=is_training,
-                                                               strides=conv_strides, activation=conv_layer_activation_fn,
-                                                               use_bn=False, use_lrn=False, padding='SAME')
+                                              strides=conv_strides, activation=conv_layer_activation_fn,
+                                              use_bn=False, use_lrn=False, padding='SAME')
             conv2_len = int((conv1_len + conv_strides[2] - 1) / conv_strides[2])
         ff_in = tf.reshape(conv2, [-1, conv2_len * 16 * 3])
 
         for index, nhidden in enumerate(self.graph_params["dense_layers"]):
             ff_in = layers.ff_layer(inputs=ff_in, outD=nhidden,
-                                                     is_training=is_training, activation=mid_layer_activation_fn,
-                                                     use_bn=self.graph_params["batch_norm"], name="ff_{}".format(index + 1))
+                                    is_training=is_training, activation=mid_layer_activation_fn,
+                                    use_bn=self.graph_params["batch_norm"], name="ff_{}".format(index + 1))
 
         ff_final = layers.ff_layer(inputs=ff_in, outD=self.graph_params["nhidden_max_edges"] * 2,
-                                                    is_training=is_training, activation=None, name="ff_final")
+                                   is_training=is_training, activation=None, name="ff_final")
         edge_final = None
         if self.graph_params["edge_classifier"]:
             if 'softmax_crossentropy' == self._flags.loss_mode:
@@ -377,10 +365,10 @@ class GraphConv2MultiFF(Graph2D):
                 activation = None
                 outD = 1
             edge_final = layers.ff_layer(inputs=ff_in,
-                                                          outD=outD,
-                                                          is_training=is_training,
-                                                          activation=activation,
-                                                          name="edge_final")
+                                         outD=outD,
+                                         is_training=is_training,
+                                         activation=activation,
+                                         name="edge_final")
 
         def num_step(x, bias):
             return tf.math.divide(1, tf.add(tf.constant(1.0), tf.math.exp(-10000000.0 * (x - bias))))
@@ -423,25 +411,25 @@ class GraphConv2MultiFFTriangle(Graph2D):
             kernel_dims = [3, 5, 1, 4]
             conv_strides = [1, 1, 3, 1]
             conv1 = layers.conv2d_bn_lrn_drop(inputs=fc, kernel_shape=kernel_dims, is_training=is_training,
-                                                               strides=conv_strides, activation=conv_layer_activation_fn,
-                                                               use_bn=False, use_lrn=False, padding='SAME')
+                                              strides=conv_strides, activation=conv_layer_activation_fn,
+                                              use_bn=False, use_lrn=False, padding='SAME')
             conv1_len = int((self._flags.data_len + conv_strides[2] - 1) / conv_strides[2])
         # Conv2
         with tf.compat.v1.variable_scope("conv2"):
             kernel_dims = [1, 8, 4, 16]
             conv_strides = [1, 1, 6, 1]
             conv2 = layers.conv2d_bn_lrn_drop(inputs=conv1, kernel_shape=kernel_dims, is_training=is_training,
-                                                               strides=conv_strides, activation=conv_layer_activation_fn,
-                                                               use_bn=False, use_lrn=False, padding='SAME')
+                                              strides=conv_strides, activation=conv_layer_activation_fn,
+                                              use_bn=False, use_lrn=False, padding='SAME')
             conv2_len = int((conv1_len + conv_strides[2] - 1) / conv_strides[2])
         ff_in = tf.reshape(conv2, [-1, conv2_len * 16 * 3])
 
         for index, nhidden in enumerate(self.graph_params["dense_layers"]):
             ff_in = layers.ff_layer(inputs=ff_in, outD=nhidden,
-                                                     is_training=is_training, activation=mid_layer_activation_fn,
-                                                     use_bn=self.graph_params["batch_norm"], name="ff_{}".format(index + 1))
+                                    is_training=is_training, activation=mid_layer_activation_fn,
+                                    use_bn=self.graph_params["batch_norm"], name="ff_{}".format(index + 1))
 
         ff_final = layers.ff_layer(inputs=ff_in, outD=self.graph_params["nhidden_dense_final"],
-                                                    is_training=is_training, activation=None, name="ff_final")
+                                   is_training=is_training, activation=None, name="ff_final")
 
         return {"p_pred": ff_final}
