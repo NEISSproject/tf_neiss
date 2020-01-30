@@ -1,7 +1,7 @@
 import shutil
 import numpy as np
 import tensorflow as tf
-import model_fn.model_fn_nlp.util_pos.graphs_pos as graphs
+import model_fn.model_fn_nlp.util_nlp.graphs_pos as graphs
 from input_fn.input_fn_nlp.util_input_fn_nlp.StringMapper import get_sm
 from model_fn.model_fn_base import ModelBase
 
@@ -92,6 +92,12 @@ class ModelPOS(ModelBase):
     def to_tensorboard(self, graph_out_dict, targets, input_features):
         self.metrics[self._mode]["loss"](graph_out_dict["loss"])
         self.metrics[self._mode]["accuracy"].update_state(targets['tgt'], graph_out_dict['pred_ids'], tf.sequence_mask(graph_out_dict['sentencelength']))
+
+    def get_call_graph_signature(self):
+        call_graph_signature = [{'sentence':tf.TensorSpec(shape=[None,None,300], dtype=tf.float32),
+                                 'sentencelength':tf.TensorSpec(shape=[None, None], dtype=tf.int32)},
+                                {'tgt': tf.TensorSpec(shape=[None, None], dtype=tf.int32)}]
+        return call_graph_signature
 
 
 

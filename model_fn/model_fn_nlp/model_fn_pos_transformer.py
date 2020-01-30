@@ -1,7 +1,7 @@
 import shutil
 import numpy as np
 import tensorflow as tf
-import model_fn.model_fn_nlp.util_pos.graphs_pos as graphs
+import model_fn.model_fn_nlp.util_nlp.graphs_pos as graphs
 from input_fn.input_fn_nlp.util_input_fn_nlp.StringMapper import get_sm
 from model_fn.model_fn_base import ModelBase
 

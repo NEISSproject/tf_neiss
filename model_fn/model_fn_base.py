@@ -78,8 +78,6 @@ class ModelBase(object):
             self.output_names.append(key)
         return build_inputs, build_out
 
-
-
     def get_graph(self):
         """
         Model specific definition of the graph
@@ -153,10 +151,10 @@ class ModelBase(object):
         """Write metrics to tensorboard-file (it's called after each epoch) and reset tf.keras.metrics"""
         with self.summary_writer[self._mode].as_default():
             if self._mode_training:
-                tf.summary.scalar("learing_rate",
+                tf.summary.scalar("learning_rate",
                                   self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations - 1),
                                   step=self.optimizer.iterations - 1)
-                tf.summary.scalar("learing_rate", self.custom_optimizer.get_current_learning_rate(),
+                tf.summary.scalar("learning_rate", self.custom_optimizer.get_current_learning_rate(),
                                   step=self.optimizer.iterations)
             else:
                 # add
@@ -168,7 +166,6 @@ class ModelBase(object):
                 tf.summary.scalar(metric, self.metrics[self._mode][metric].result(), step=self.graph_train.global_epoch)
                 logger.debug("Reset metric: {} with tf.name: {}".format(metric, self.metrics[self._mode][metric].name))
                 self.metrics[self._mode][metric].reset_states()
-
 
     def to_tensorboard(self, graph_out_dict, targets, input_features):
         """update tf.keras.metrics with this function (it's called after each batch"""
@@ -189,9 +186,6 @@ class ModelBase(object):
     def print_evaluate_summary(self):
         """is called at end of lav(load_and_validate), can use graph variables or plot something"""
         pass
-
-    def get_train_step_signature(self):
-        return None
 
     def get_call_graph_signature(self):
         return None
