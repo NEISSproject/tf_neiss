@@ -154,7 +154,7 @@ class ModelBase(object):
                 tf.summary.scalar("learning_rate",
                                   self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations - 1),
                                   step=self.optimizer.iterations - 1)
-                tf.summary.scalar("learning_rate", self.custom_optimizer.get_current_learning_rate(),
+                tf.summary.scalar("learning_rate", self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations),
                                   step=self.optimizer.iterations)
             else:
                 # add

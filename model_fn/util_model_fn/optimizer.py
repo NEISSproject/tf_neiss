@@ -91,6 +91,28 @@ class FinalDecayOptimizer(DecayOptimizer):
                                      self._optimizer_params["final_epochs"])
         return self._learn_rate_schedule
 
+class WarmupDecayOptimizer(DecayOptimizer):
+    def __init__(self, params):
+        super(WarmupDecayOptimizer, self).__init__(params)
+        self._name = "WarmupDecayOptimizer"
+        self._params = params
+        self._flags = params['flags']
+        # Default params for the decay scenario
+        self._optimizer_params["d_model"] = 128  # embedding dimension
+        self._optimizer_params["warmup_steps"] = 4000  # warmup steps
+
+    def _get_lr(self):
+        """override learning rate schedule of the inherited class add cosine decrease in the final epochs"""
+        if not self._learn_rate_schedule:
+            self._learn_rate_schedule = WarmupSchedule(self._optimizer_params["d_model"],self._optimizer_params["warmup_steps"])
+        return self._learn_rate_schedule
+
+    def get_current_learning_rate(self, step=None):
+        if step:
+            return self._learn_rate_schedule(tf.cast(step,tf.float32))
+        else:
+            return self._learn_rate_schedule(self._keras_optimizer.iterations)
+
 
 class CosineDecaySchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     def __init__(self, learning_rate,
@@ -137,3 +159,29 @@ class CosineDecaySchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
             "staircase": True,
             "name": self.name
         }
+
+class WarmupSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+  def __init__(self, d_model, warmup_steps=4000):
+    super(WarmupSchedule, self).__init__()
+
+    self.d_model = d_model
+    self.d_model = tf.cast(self.d_model, tf.float32)
+
+    self.warmup_steps = warmup_steps
+
+  def __call__(self, step):
+    arg1 = tf.math.rsqrt(step)
+    arg2 = step * (self.warmup_steps ** -1.5)
+
+    return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    temp_learning_rate_schedule = WarmupSchedule(128)
+    def get_current_learning_rate(temp_learning_rate_schedule, step=None):
+        if step:
+            return temp_learning_rate_schedule(tf.cast(step,tf.float32))
+        else:
+            return temp_learning_rate_schedule(step)
+    print(get_current_learning_rate(temp_learning_rate_schedule,1))
