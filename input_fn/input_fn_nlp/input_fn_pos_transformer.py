@@ -18,8 +18,10 @@ class InputFnTFPOS(InputFnNLPBase):
         self.get_shapes_types_defaults()
 
         #self._fasttextmodel = FastText.load_fasttext_format(self._flags.word_embeddings)
-        self._tok_vocab_size=self._flags.tok_size
+
         self._tokenizer_de=tfds.features.text.SubwordTextEncoder.load_from_file(self._flags.tokenizer)
+        self._tok_vocab_size=self._tokenizer_de.vocab_size
+
 
 
         print("done init input fct")

@@ -176,20 +176,19 @@ class EncoderFull(GraphBase):
     def __init__(self, params):
         super(EncoderFull, self).__init__(params)
         self._flags = params['flags']
-        self.vocab_tag_size = params['num_tags']
-        self.embed_dim = 300
-        self.num_heads = 10
-        self.max_seq_len = 200
-        self.num_layers = 8
-        self.max_pos_encoding = 200
-        self.input_vocab_size = 0
-        self.pos_encoding = positional_encoding(self.max_seq_len,
-                                                self.embed_dim)
+        self._num_layers = 4
+        self._d_model = 128
+        self._num_heads = 8
+        self._dff = 512
+        self._input_vocab_size = params['tok_size'] + 2
+        self._target_vocab_size = params['num_tags'] + 2
+        self._pe_input = 300
+        self._rate = 0.1
 
         # initilize keras layer
-        self._tracked_layers["encoder"] = Encoder(self.num_layers, self.embed_dim, self.num_heads, self.embed_dim,
-                                                  self.input_vocab_size, self.max_pos_encoding)
-        self._tracked_layers["last_layer"] = tf.keras.layers.Dense(self.vocab_tag_size, activation=None,
+        self._tracked_layers["encoder"] = Encoder(self._num_layers, self._d_model, self._num_heads, self._dff,
+                                                  self._input_vocab_size, self._pe_input, self._rate)
+        self._tracked_layers["last_layer"] = tf.keras.layers.Dense(self._target_vocab_size, activation=None,
                                                                    name="last_layer")
         self._tracked_layers["softmax"] = tf.keras.layers.Softmax()
 
@@ -198,28 +197,38 @@ class EncoderFull(GraphBase):
         sentencelength = inputs["sentencelength"]
         sentencelength = sentencelength[:, 0]
         # add pos encoding
-        # max_batch_seq_len = tf.shape(sentence)[1]
-        # sentence += self.pos_encoding[:, :max_batch_seq_len, :]
+        #max_batch_seq_len = tf.shape(sentence)[1]
+        #sentence += self.pos_encoding[:, :max_batch_seq_len, :]
 
         # connect keras layers
-        mask = create_padding_mask(sentencelength)
+        mask = self.create_padding_mask_trans(sentence)
         enc_lay_out = self._tracked_layers["encoder"]({'x': sentence, 'mask': mask}, training)
         logits = self._tracked_layers["last_layer"](enc_lay_out)
+        max=tf.reduce_max(sentencelength)
+        logits=logits[:,:max]
         pred_ids = tf.argmax(input=logits, axis=2, output_type=tf.int32)
         probabilities = self._tracked_layers["softmax"](logits)
         self._graph_out = {"pred_ids": pred_ids, 'probabilities': probabilities, 'logits': logits,
                            "sentencelength": sentencelength}
+
         return self._graph_out
+
+    def create_padding_mask_trans(self, seq):
+        seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
+
+        # add extra dimensions to add the padding
+        # to the attention logits.
+        return seq[:, tf.newaxis, tf.newaxis, :]
 
 
 class Transformer(GraphBase):
     def __init__(self, params):
         super(Transformer, self).__init__(params)
         self._flags = params['flags']
-        self._num_layers = 1
-        self._d_model = 300
-        self._num_heads = 10
-        self._dff = 300
+        self._num_layers = 4
+        self._d_model = 128
+        self._num_heads = 8
+        self._dff = 512
         self._input_vocab_size = params['tok_size'] + 2
         self._target_vocab_size = params['num_tags'] + 2
         self._pe_input = 300
