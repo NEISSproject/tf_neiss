@@ -176,7 +176,7 @@ class EncoderFull(GraphBase):
     def __init__(self, params):
         super(EncoderFull, self).__init__(params)
         self._flags = params['flags']
-        self._num_layers = 4
+        self._num_layers = 8
         self._d_model = 128
         self._num_heads = 8
         self._dff = 512
