@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-class GraphBase(tf.keras.models.Model):
+class GraphBase(tf.keras.Model):
     def __init__(self, params):
         super(GraphBase, self).__init__()
         self.graph_params = dict()

@@ -8,7 +8,6 @@ from util.flags import update_params
 class Graph2D(GraphBase):
     def __init__(self, params):
         super(Graph2D, self).__init__(params)
-        self._flags = params['flags']
         self._shape_dynamic = None
         self._use_gpu = True
         if params['num_gpus'] == 0:

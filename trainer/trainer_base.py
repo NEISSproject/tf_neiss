@@ -5,8 +5,7 @@ import tensorflow as tf
 
 import util.flags as flags
 from util.misc import get_commit_id, Tee
-
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # Training
 # ========
@@ -19,6 +18,7 @@ flags.define_integer('samples_per_epoch', 100000, 'Samples shown to the net per 
 #                                      ' for negative values LOCAL norm clipping is performed (default: %(default)s)')
 flags.define_string('optimizer', 'DecayOptimizer', 'the optimizer used to compute and apply gradients.')
 flags.define_dict('optimizer_params', {}, "key=value pairs defining the configuration of the optimizer.")
+flags.define_dict('input_fn_params', {}, "key=value pairs defining the configuration of the optimizer.")
 flags.define_string('learn_rate_schedule', "decay", 'decay, finaldecay, warmupfinaldecay')
 flags.define_dict("learn_rate_params", {}, "key=value pairs defining the configuration of the learn_rate_schedule.")
 # flags.define_string('train_scopes', '', 'Change only variables in this scope during training')
@@ -60,26 +60,56 @@ flags.define_list('gpu_devices', int, 'space seperated list of GPU indices to us
 # flags.define_string('dist_strategy', 'mirror', 'DistributionStrategy in MultiGPU scenario. '
 #                                                'mirror - MirroredStrategy, ps - ParameterServerStrategy')
 # flags.define_boolean('gpu_auto_tune', False, 'GPU auto tune (default: %(default)s)')
-# flags.define_float('gpu_memory', -1, 'set gpu memory in MB allocated on each (allowed) gpu')
+
+flags.define_float('gpu_memory_limit', -1, 'set gpu memory in MB allocated on each (allowed) gpu '
+                                           'KEEP IN MIND: there are around 350 MB overhead per process,'
+                                           'NOTE: this disables memory growth!')
+flags.define_float('gpu_memory_growth', True, 'allocate only the needed memory within memory-limit')
 flags.define_string('print_to', 'console', 'write prints to "console, "file", "both"')
 flags.define_boolean("tensorboard", True, "if True: write tensorboard logs")
 flags.define_boolean('force_eager', False, 'ignore tf.function decorator, run every thing eagerly for debugging')
 flags.FLAGS.parse_flags()
 
 
+def set_run_config():
+    # hide gpu's befor gpu initializing by using tf functions
+    gpu_list = ','.join(str(x) for x in flags.FLAGS.gpu_devices)
+    os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list
+    print("VISIBLE GPU-DEVICES:", os.environ["CUDA_VISIBLE_DEVICES"])
+
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        if flags.FLAGS.gpu_memory_growth:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        if flags.FLAGS.gpu_memory_limit > 0:
+            tf.config.experimental.set_virtual_device_configuration(gpu, [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=flags.FLAGS.gpu_memory_limit)])
+
+    #
+    # if not flags.FLAGS.gpu_devices:
+    #     tf.config.experimental.set_visible_devices([], 'GPU')
+    # elif flags.FLAGS.gpu_devices and gpus:
+    #     tf.config.experimental.set_visible_devices(gpus, 'GPU')
+
+    if flags.FLAGS.force_eager:
+        tf.config.experimental_run_functions_eagerly(run_eagerly=True)
+
+
+set_run_config()
+
+
 class TrainerBase(object):
     def __init__(self):
         self._flags = flags.FLAGS
-        tee_path = os.path.join(os.path.dirname(flags.FLAGS.checkpoint_dir),
-                                "log_" + os.path.basename(flags.FLAGS.checkpoint_dir) + ".txt")
-        if flags.FLAGS.print_to == "file":
+        tee_path = os.path.join(os.path.dirname(self._flags.checkpoint_dir),
+                                "log_" + os.path.basename(self._flags.checkpoint_dir) + ".txt")
+        if self._flags.print_to == "file":
             self.tee = Tee(tee_path, console=False, delete_existing=False)
-        elif flags.FLAGS.print_to == "both":
+        elif self._flags.print_to == "both":
             self.tee = Tee(tee_path, console=True, delete_existing=False)
         else:
             self.tee = None
 
-        self.set_run_config()
+        # self.set_run_config()
         flags.print_flags()
         self._input_fn_generator = None
         self._model_class = None
@@ -117,12 +147,12 @@ class TrainerBase(object):
 
         checkpoint_obj = tf.train.Checkpoint(step=self._model.graph_train.global_step, optimizer=self._model.optimizer,
                                              model=self._model.graph_train)
-        checkpoint_manager = tf.train.CheckpointManager(checkpoint=checkpoint_obj, directory=flags.FLAGS.checkpoint_dir,
+        checkpoint_manager = tf.train.CheckpointManager(checkpoint=checkpoint_obj, directory=self._flags.checkpoint_dir,
                                                         max_to_keep=1)
 
-        if tf.train.get_checkpoint_state(flags.FLAGS.checkpoint_dir):
-            print("restore from checkpoint: {}".format(flags.FLAGS.checkpoint_dir))
-            checkpoint_obj.restore(tf.train.latest_checkpoint(flags.FLAGS.checkpoint_dir))
+        if tf.train.get_checkpoint_state(self._flags.checkpoint_dir):
+            print("restore from checkpoint: {}".format(self._flags.checkpoint_dir))
+            checkpoint_obj.restore(tf.train.latest_checkpoint(self._flags.checkpoint_dir))
         if self._model.graph_train.global_epoch.numpy() >= self._flags.epochs:
             print('Loaded model already in epoch {}. Evaluation...'.format(
                 self._model.graph_train.global_epoch.numpy()))
@@ -170,7 +200,7 @@ class TrainerBase(object):
             print("\nEPOCH:   {:10.0f}, optimizer steps: {:9}".format(self._model.graph_train.global_epoch.numpy(),
                                                                       self._model.graph_train.global_step.numpy()))
             print("train-loss:{:8.3f}, samples/seconde:{:8.1f}, time:{:6.1f}"
-                  .format(self.epoch_loss, flags.FLAGS.samples_per_epoch / (time.time() - t1), time.time() - t1))
+                  .format(self.epoch_loss, self._flags.samples_per_epoch / (time.time() - t1), time.time() - t1))
             # Save checkpoint each epoch
             checkpoint_manager.save()
             self._model.write_tensorboard()
@@ -190,7 +220,7 @@ class TrainerBase(object):
         if not self._checkpoint_obj_val:
             self._checkpoint_obj_val = tf.train.Checkpoint(model=self._model.graph_eval)
 
-        self._checkpoint_obj_val.restore(tf.train.latest_checkpoint(flags.FLAGS.checkpoint_dir))
+        self._checkpoint_obj_val.restore(tf.train.latest_checkpoint(self._flags.checkpoint_dir))
         val_loss = 0.0
         t_val = time.time()
         call_graph_signature = self._model.get_call_graph_signature()
@@ -210,18 +240,14 @@ class TrainerBase(object):
             val_batch_number = batch
         val_loss /= float(val_batch_number + 1.0)
         print("val-loss:{:10.3f}, samples/second:{:8.1f}, time:{:6.1f}"
-              .format(val_loss, (val_batch_number + 1) * flags.FLAGS.val_batch_size /
+              .format(val_loss, (val_batch_number + 1) * self._flags.val_batch_size /
                       (time.time() - t_val), time.time() - t_val))
 
     def export(self):
         # Export as saved model
-        print("Export saved_model to: {}".format(os.path.join(flags.FLAGS.checkpoint_dir, "export")))
-        self._model.graph_train.save(os.path.join(flags.FLAGS.checkpoint_dir, "export"))
+        print("Export saved_model to: {}".format(os.path.join(self._flags.checkpoint_dir, "export")))
+        self._model.graph_train.save(os.path.join(self._flags.checkpoint_dir, "export"))
 
-    def set_run_config(self):
-        if flags.FLAGS.force_eager:
-            tf.config.experimental_run_functions_eagerly(run_eagerly=True)
 
-        gpu_list = ','.join(str(x) for x in flags.FLAGS.gpu_devices)
-        os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list
-        print("GPU-DEVICES:", os.environ["CUDA_VISIBLE_DEVICES"])
+
+
