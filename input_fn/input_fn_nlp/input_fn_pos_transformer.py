@@ -124,9 +124,3 @@ class InputFnTFPOS(InputFnNLPBase):
                 for i in range(len(inputlist)):
                     yield self._parse_fn(inputlist[i],None)
 
-if __name__ == "__main__":
-     string_mapper=get_sm('../../tests/workdir_pos/vocab.words.txt')
-     print(string_mapper.get_channel('der'))
-     print(string_mapper.get_channel('die'))
-     print(string_mapper.get_channel('gundram'))
-
