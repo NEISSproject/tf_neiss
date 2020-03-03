@@ -19,7 +19,7 @@ class BERTMiniLM(GraphBase):
                                                   self._vocab_size, self._pos_enc_max, self._rate)
 
         self._tracked_layers["last_layer"] = tf.keras.layers.Dense(self._vocab_size)
-        self._tracked_layers["softmax"] = tf.keras.layers.Softmax()
+        #self._tracked_layers["softmax"] = tf.keras.layers.Softmax()
 
     def call(self, inputs, training=None, mask=None):
         inp = inputs["sentence"]
@@ -34,8 +34,8 @@ class BERTMiniLM(GraphBase):
 
         final_output = self._tracked_layers["last_layer"](enc_output)  # (batch_size, tar_seq_len, target_vocab_size)
         pred_ids = tf.argmax(input=final_output, axis=2, output_type=tf.int32)
-        probabilities = self._tracked_layers["softmax"](final_output)
-        self._graph_out = {"pred_ids": pred_ids, 'probabilities': probabilities, 'logits': final_output, 'enc_output': enc_output,'masked_index':inputs["masked_index"],"sentencelength": sentencelength}
+        #probabilities = self._tracked_layers["softmax"](final_output)
+        self._graph_out = {"pred_ids": pred_ids, 'logits': final_output, 'enc_output': enc_output,'masked_index':inputs["masked_index"],"sentencelength": sentencelength}
         return self._graph_out
 
 

@@ -16,7 +16,7 @@ class ModelBertLM(ModelBase):
     def get_predictions(self):
         return {
             "classes": self._graph_out['pred_ids'],
-            "probabilities": self._graph_out['probabilities'],
+            #"probabilities": self._graph_out['probabilities'],
             "sentencelength": self._graph_out['sentencelength'],
             "logits": self._graph_out['logits'],
             'masked_index': self._graph_out['masked_index'],
@@ -33,9 +33,9 @@ class ModelBertLM(ModelBase):
 
     def get_output_nodes(self, has_graph=True):
         if has_graph:
-            tf.identity(self._graph_out['probabilities'], name="probs")  # name to grab from java
+            #tf.identity(self._graph_out['probabilities'], name="probs")  # name to grab from java
             tf.identity(self._graph_out['pred_ids'], name="ids")  # name to grab from java
-        return "logProbs,ids"  # return names as comma separated string without spaces
+        return "ids"  # return names as comma separated string without spaces
 
     def get_loss(self):
         tags = self._targets['tgt']
