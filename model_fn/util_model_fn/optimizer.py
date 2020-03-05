@@ -26,6 +26,8 @@ class DecayOptimizer(object):
         self._optimizer_params["ema_decay"] = 0.1  # set decay of moving average variables
         self._optimizer_params[
             "learning_circle"] = 3  # number of epochs with same learning rate, except for restart-strategies
+        self._optimizer_params["d_model"] = 128
+        self._optimizer_params["warmup_steps"] = 4000
         self.update_params()
 
     def update_params(self):
@@ -97,11 +99,6 @@ class WarmupDecayOptimizer(DecayOptimizer):
         self._name = "WarmupDecayOptimizer"
         self._params = params
         self._flags = params['flags']
-        # Default params for the decay scenario
-        if self._optimizer_params.get("d_model") is None:
-            self._optimizer_params["d_model"] = 128  # embedding dimension
-        if self._optimizer_params.get("warmup_steps") is None:
-            self._optimizer_params["warmup_steps"] = 4000  # warmup steps
 
     def _get_lr(self):
         """override learning rate schedule of the inherited class add cosine decrease in the final epochs"""
