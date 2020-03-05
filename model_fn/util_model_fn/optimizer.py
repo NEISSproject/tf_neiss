@@ -98,8 +98,10 @@ class WarmupDecayOptimizer(DecayOptimizer):
         self._params = params
         self._flags = params['flags']
         # Default params for the decay scenario
-        self._optimizer_params["d_model"] = 128  # embedding dimension
-        self._optimizer_params["warmup_steps"] = 4000  # warmup steps
+        if self._optimizer_params.get("d_model") is None:
+            self._optimizer_params["d_model"] = 128  # embedding dimension
+        if self._optimizer_params.get("warmup_steps") is None:
+            self._optimizer_params["warmup_steps"] = 4000  # warmup steps
 
     def _get_lr(self):
         """override learning rate schedule of the inherited class add cosine decrease in the final epochs"""
@@ -177,11 +179,20 @@ class WarmupSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    temp_learning_rate_schedule = WarmupSchedule(128)
+    #import matplotlib.pyplot as plt
+    import pylab
+    import numpy as np
+    temp_learning_rate_schedule = WarmupSchedule(512,100000)
+    comp_temp_learning_rate_schedule = WarmupSchedule(512,375000)
     def get_current_learning_rate(temp_learning_rate_schedule, step=None):
         if step:
             return temp_learning_rate_schedule(tf.cast(step,tf.float32))
         else:
             return temp_learning_rate_schedule(step)
-    print(get_current_learning_rate(temp_learning_rate_schedule,1))
+    x=np.linspace(1,1000000,1000)
+    #print(x)
+    y=[get_current_learning_rate(temp_learning_rate_schedule,x[i]) for i in range(len(x))]
+    pylab.plot(x,y)
+    y=[get_current_learning_rate(comp_temp_learning_rate_schedule,x[i]) for i in range(len(x))]
+    pylab.plot(x,y,'co')
+    pylab.show()
