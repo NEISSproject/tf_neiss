@@ -181,6 +181,7 @@ if __name__ == '__main__':
     import numpy as np
     temp_learning_rate_schedule = WarmupSchedule(512,100000)
     comp_temp_learning_rate_schedule = WarmupSchedule(512,375000)
+    comp2_temp_learning_rate_schedule = WarmupSchedule(128,4000)
     def get_current_learning_rate(temp_learning_rate_schedule, step=None):
         if step:
             return temp_learning_rate_schedule(tf.cast(step,tf.float32))
@@ -191,5 +192,7 @@ if __name__ == '__main__':
     y=[get_current_learning_rate(temp_learning_rate_schedule,x[i]) for i in range(len(x))]
     pylab.plot(x,y)
     y=[get_current_learning_rate(comp_temp_learning_rate_schedule,x[i]) for i in range(len(x))]
-    pylab.plot(x,y,'co')
+    pylab.plot(x,y)#,'co')
+    y=[get_current_learning_rate(comp2_temp_learning_rate_schedule,x[i]) for i in range(len(x))]
+    pylab.plot(x,y)
     pylab.show()

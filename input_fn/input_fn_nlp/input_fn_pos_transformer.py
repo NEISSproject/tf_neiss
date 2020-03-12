@@ -76,14 +76,41 @@ class InputFnTFPOS(InputFnNLPBase):
             if targetlist is not None:
                 tags.append(self._tag_string_mapper.get_channel(targetlist[j]))
         enc_sentence=self._tokenizer_de.encode(sentence)
+        if "BERT" in self._flags.graph:
+            tar_real=[]
+            last_index=None
+            curindex=len(enc_sentence)-1
+            for j in range(len(inputlist)-1,-1,-1):
+                if last_index is not None:
+                    curlist=[last_index]
+                else:
+                    curlist=[]
+                while len(curlist)==0 or inputlist[j] not in self._tokenizer_de.decode(curlist):
+                    curlist=[enc_sentence[curindex]]+curlist
+                    curindex-=1
+                if last_index is not None:
+                    tar_real=(len(curlist)-1)*[tags[j]]+tar_real
+                else:
+                    tar_real=len(curlist)*[tags[j]]+tar_real
+
+                last_subword=self._tokenizer_de.decode([curlist[0]])
+                if len(last_subword)>2 and ' ' in last_subword[1:-1]:
+                    last_index=curlist[0]
+                else:
+                    last_index=None
         #Add SOS-Tag and EOS-Tag
         enc_sentence=[self._tok_vocab_size]+enc_sentence+[self._tok_vocab_size+1]
 
 
         #Add SOS-Tag for input targets
         tar_inp=[self.get_num_tags()]+tags
-        #Add EOS-Tag for real targets
-        tar_real=tags+[self.get_num_tags()+1]
+
+        if "BERT" in self._flags.graph:
+            tar_real=[self.get_num_tags()]+tar_real+[self.get_num_tags()+1]
+        else:
+            #Add EOS-Tag for real targets
+            tar_real=tags+[self.get_num_tags()+1]
+
         #In Transformer the sentencelength is only used in the loss function. Therefore it needs the length of the targets
         sentencelength=[len(tar_real)]
         inputs = {'sentence':enc_sentence,'sentencelength':sentencelength,'tar_inp':tar_inp}
@@ -123,4 +150,5 @@ class InputFnTFPOS(InputFnNLPBase):
                 inputlist=[[setlist[i][j] for j in range(len(setlist[i]))] for i in range(len(setlist))]
                 for i in range(len(inputlist)):
                     yield self._parse_fn(inputlist[i],None)
+
 

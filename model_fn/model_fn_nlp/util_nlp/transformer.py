@@ -88,6 +88,42 @@ class Encoder(tf.keras.layers.Layer):
 
         return x  # (batch_size, input_seq_len, d_model)
 
+class AlbertEncoder(tf.keras.layers.Layer):
+    def __init__(self, num_layers, d_model, emb_dim, num_heads, dff, input_vocab_size,
+                 maximum_position_encoding, rate=0.1):
+        super(AlbertEncoder, self).__init__()
+
+        self.d_model = d_model
+        self.num_layers = num_layers
+
+        self.embedding = tf.keras.layers.Embedding(input_vocab_size, emb_dim)
+        self.pos_encoding = positional_encoding(maximum_position_encoding,
+                                                self.emb_dim)
+        self.projection_layer = tf.keras.layers.Dense(d_model)
+        self.shared_enc_layer = EncoderLayer(d_model, num_heads, dff, rate)
+
+
+        self.dropout = tf.keras.layers.Dropout(rate)
+
+    def call(self, inputs, training):
+        x = inputs['x']
+        mask = inputs['mask']
+        seq_len = tf.shape(x)[1]
+
+        # adding embedding and position encoding.
+        x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
+        x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x += self.pos_encoding[:, :seq_len, :]
+
+        x= self.projection_layer(x)
+
+        x = self.dropout(x, training=training)
+
+        for i in range(self.num_layers):
+            x = self.shared_enc_layer({'x': x, 'mask': mask}, training)
+
+        return x
+
 
 class DecoderLayer(tf.keras.layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=0.1):

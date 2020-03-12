@@ -4,6 +4,8 @@ import numpy as np
 from model_fn.graph_base import GraphBase
 from model_fn.model_fn_nlp.util_nlp.attention import Selfattention, MultiHeadAttention
 from model_fn.model_fn_nlp.util_nlp.transformer import EncoderLayer, Encoder, Decoder
+import model_fn.model_fn_nlp.util_nlp.graphs_bert_lm as bert_graphs
+import model_fn.util_model_fn.optimizer as optimizers
 
 
 def create_padding_mask(seq):
@@ -294,3 +296,45 @@ class Transformer(GraphBase):
         # add extra dimensions to add the padding
         # to the attention logits.
         return seq[:, tf.newaxis, tf.newaxis, :]
+
+class POSwithMiniBERT(GraphBase):
+    def set_optimizer(self,params):
+        """set a custom optimizer using --optimizer, --optimizer_params,
+        - overwrite if you need something different; set self.optimizer = tf.keras.optimizer._class_object"""
+
+        get_optimizer = getattr(optimizers, params['flags'].optimizer)
+        self.custom_optimizer = get_optimizer(params)
+        self.bert_optimizer = self.custom_optimizer.get_keras_optimizer()
+        #self.custom_optimizer.print_params()
+
+    def __init__(self, params):
+        super(POSwithMiniBERT, self).__init__(params)
+        self._flags = params['flags']
+        self._target_vocab_size = params['num_tags'] + 2
+        self._pretrained_bert = getattr(bert_graphs, params['flags'].bert_graph)(params)
+        self.set_optimizer(params)
+        #self._pretrained_bert.load_weights(tf.train.latest_checkpoint(self._flags.bert_dir))
+        checkpoint_obj = tf.train.Checkpoint(step=self._pretrained_bert.global_step, optimizer=self.bert_optimizer,
+                                             model=self._pretrained_bert)
+
+        if tf.train.get_checkpoint_state(self._flags.bert_dir):
+            print("restore bert_model from bert checkpoint: {}".format(self._flags.bert_dir))
+            checkpoint_obj.restore(tf.train.latest_checkpoint(self._flags.bert_dir)).expect_partial()
+
+        self._tracked_layers["last_layer"] = tf.keras.layers.Dense(self._target_vocab_size, activation=None,
+                                                                   name="last_layer")
+        self._tracked_layers["softmax"] = tf.keras.layers.Softmax()
+
+    def call(self, inputs, training=None, mask=None):
+        sentencelength = inputs["sentencelength"]
+        sentencelength = sentencelength[:, 0]
+        inputs["masked_index"]=None
+        bert_graph_out=self._pretrained_bert(inputs)
+        del inputs["masked_index"]
+
+        final_output = self._tracked_layers["last_layer"](bert_graph_out["enc_output"])  # (batch_size, tar_seq_len, target_vocab_size)
+        pred_ids = tf.argmax(input=final_output, axis=2, output_type=tf.int32)
+        probabilities = self._tracked_layers["softmax"](final_output)
+        self._graph_out = {"pred_ids": pred_ids, 'probabilities': probabilities, 'logits': final_output,
+                           "sentencelength": sentencelength}
+        return self._graph_out
