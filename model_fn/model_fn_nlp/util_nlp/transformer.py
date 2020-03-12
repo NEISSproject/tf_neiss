@@ -98,7 +98,7 @@ class AlbertEncoder(tf.keras.layers.Layer):
 
         self.embedding = tf.keras.layers.Embedding(input_vocab_size, emb_dim)
         self.pos_encoding = positional_encoding(maximum_position_encoding,
-                                                self.emb_dim)
+                                                emb_dim)
         self.projection_layer = tf.keras.layers.Dense(d_model)
         self.shared_enc_layer = EncoderLayer(d_model, num_heads, dff, rate)
 
