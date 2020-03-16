@@ -57,7 +57,7 @@ class ALBERTBaseLM(GraphBase):
         self._dff = 768
         self._vocab_size = params['tok_size']
         self._pos_enc_max = 8000
-        self._rate = 0.1
+        self._rate = 0
 
         self._tracked_layers["encoder"] = AlbertEncoder(self._num_layers, self._d_model,self._emb_dim, self._num_heads, self._dff,
                                                   self._vocab_size, self._pos_enc_max, self._rate)
