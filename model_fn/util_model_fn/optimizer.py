@@ -60,6 +60,9 @@ class DecayOptimizer(object):
                 self._keras_optimizer = tf.keras.optimizers.RMSprop(lr)
             if self._optimizer_params["optimizer"] == 'sgd':
                 self._keras_optimizer = tf.keras.optimizers.SGD(lr)
+            if self._optimizer_params["optimizer"] == 'lamb':
+                print('Use LAMB Optimizer')
+                self._keras_optimizer = tfa.optimizers.LAMB(lr)
         if self._optimizer_params["calc_ema"]:
             self._keras_optimizer = tfa.optimizers.MovingAverage(self._keras_optimizer,
                                                                  average_decay=self._optimizer_params["ema_decay"])
