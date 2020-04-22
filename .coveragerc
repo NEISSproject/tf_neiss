@@ -1,0 +1,4 @@
+[run]
+omit =
+    # omit the following files. E.g. uncomment the next line
+    # tfields/plotting/*.py
