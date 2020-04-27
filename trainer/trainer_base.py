@@ -185,15 +185,16 @@ class TrainerBase(object):
             t1 = time.time()
             self._model.set_mode("train")
             train_batch_number = 0
-            for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_train()):
+            #use take and not break see https://github.com/tensorflow/tensorflow/issues/19499
+            for (batch, (input_features, targets)) in enumerate(self._train_dataset.take(int(self._flags.samples_per_epoch / self._flags.train_batch_size))):
                 # do the _train_step as tf.function to improve performance
                 train_out_dict = _train_step_intern(input_features, targets)
                 self._model.to_tensorboard(train_out_dict, targets, input_features)
                 self.epoch_loss += train_out_dict["loss"]
                 train_batch_number = batch
-                if batch + 1 >= int(self._flags.samples_per_epoch / self._flags.train_batch_size):
+                #if batch + 1 >= int(self._flags.samples_per_epoch / self._flags.train_batch_size):
                     # stop endless '.repeat()' dataset with break
-                    break
+                #    break
 
             self.epoch_loss /= float(train_batch_number + 1.0)
             self._model.graph_train.global_epoch.assign_add(1)
@@ -203,7 +204,7 @@ class TrainerBase(object):
                   .format(self.epoch_loss, self._flags.samples_per_epoch / (time.time() - t1), time.time() - t1))
             # Save checkpoint each epoch
             checkpoint_manager.save()
-            self._model.write_tensorboard()
+            #self._model.write_tensorboard()
 
             # Evaluation on this checkpoint
             self._model.set_mode("eval")
