@@ -7,14 +7,6 @@ class BERTMiniSOP(GraphBase):
     def __init__(self, params):
         super(BERTMiniSOP, self).__init__(params)
         self._flags = params['flags']
-        self._num_layers = 6
-        self._d_model = 512
-        self._num_heads = 8
-        self._dff = 512
-        self._vocab_size = params['tok_size']
-        self._pos_enc_max = 20000
-        self._rate = 0.1
-
         self.bert=BERTMini(params)
 
         self._tracked_layers["last_layer"] = tf.keras.layers.Dense(2)
