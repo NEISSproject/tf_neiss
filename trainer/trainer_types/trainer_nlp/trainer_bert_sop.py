@@ -20,6 +20,7 @@ flags.define_integer('buffer', 1,
 flags.define_integer('sum_train_batches', 1,
                      'use the average of the gradients sum_train_batches to apply the gradients')
 flags.define_boolean('predict_mode', False, 'If and only if true the prediction will be accomplished')
+flags.define_string('bert_checkpoint_dir', '', 'Checkpoint to save pure bert model information in.')
 flags.FLAGS.parse_flags()
 
 
@@ -125,6 +126,13 @@ class TrainerTFBertSOP(TrainerBase):
 
         self.export()
 
+    def save_bert(self):
+        bert_checkpoint_obj = tf.train.Checkpoint(step=self._model.graph_train.global_step, optimizer=self._model.optimizer,
+                                             model=self._model.graph_train.bert)
+        bert_checkpoint_manager = tf.train.CheckpointManager(checkpoint=bert_checkpoint_obj, directory=self._flags.bert_checkpoint_dir,
+                                                        max_to_keep=1)
+        bert_checkpoint_manager.save()
+
 
 
 if __name__ == '__main__':
@@ -134,3 +142,4 @@ if __name__ == '__main__':
         trainer.train()
     else:
         trainer.train_sum_batches()
+    trainer.save_bert()
