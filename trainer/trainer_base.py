@@ -204,7 +204,7 @@ class TrainerBase(object):
                   .format(self.epoch_loss, self._flags.samples_per_epoch / (time.time() - t1), time.time() - t1))
             # Save checkpoint each epoch
             checkpoint_manager.save()
-            #self._model.write_tensorboard()
+            self._model.write_tensorboard()
 
             # Evaluation on this checkpoint
             self._model.set_mode("eval")
