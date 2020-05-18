@@ -70,8 +70,12 @@ class InputFnNER(InputFnNLPBase):
                 curindex-=1
             if last_index is not None:
                 tar_real=(len(curlist)-1)*[tags[j]]+tar_real
+                if self._flags.predict_mode:
+                    training_data[j].append(len(curlist)-1)
             else:
                 tar_real=len(curlist)*[tags[j]]+tar_real
+                if self._flags.predict_mode:
+                    training_data[j].append(len(curlist))
 
             last_subword=self._tokenizer_de.decode([curlist[0]])
             if len(last_subword)>2 and ' ' in last_subword[1:-1]:
@@ -82,36 +86,28 @@ class InputFnNER(InputFnNLPBase):
         enc_sentence=[self._tok_vocab_size]+enc_sentence+[self._tok_vocab_size+1]
         tar_real=[self.get_num_tags()]+tar_real+[self.get_num_tags()+1]
         sentencelength=[len(tar_real)]
+        if self._flags.predict_mode:
+            inputs = {'sentence':[enc_sentence],'sentencelength':[sentencelength]}
+            tgts = {'tgt': [tar_real]}
+            return inputs, tgts, training_data
         inputs = {'sentence':enc_sentence,'sentencelength':sentencelength}
         tgts = {'tgt': tar_real}
 
         return inputs, tgts
 
     def generator_fn(self):
-
-        if self._flags.predict_mode:
-            for fname in self._fnames:
-                #TODO when creating predict procedure use here possibly another format
-                with open(fname) as f:
-                    training_data=json.load(f)
-                    #print("Yield Sentence")
-                    for i in range(len(training_data)):
-                        yield self._parse_fn(training_data[i])
-        else:
-            for fname in self._fnames:
-                with open(fname) as f:
-                    training_data=json.load(f)
-                    #print("Yield Sentence")
-                    for i in range(len(training_data)):
-                        yield self._parse_fn(training_data[i])
-
-    def generator_fn_predict(self):
         for fname in self._fnames:
-            #TODO when creating predict procedure use here possibly another format
             with open(fname) as f:
                 training_data=json.load(f)
                 #print("Yield Sentence")
                 for i in range(len(training_data)):
                     yield self._parse_fn(training_data[i])
+
+    def generator_fn_predict(self,fname):
+        with open(fname) as f:
+            training_data=json.load(f)
+            #print("Yield Sentence")
+            for i in range(len(training_data)):
+                yield self._parse_fn(training_data[i])
 
 
