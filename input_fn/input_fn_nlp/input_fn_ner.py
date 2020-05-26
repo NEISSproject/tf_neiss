@@ -32,17 +32,17 @@ class InputFnNER(InputFnNLPBase):
 
     def get_shapes_types_defaults(self):
 
-        input_shapes = {'sentence': [None], 'sentencelength': [None]}
+        input_shapes = {'sentence': [None]}
 
-        tgt_shapes = {'tgt': [None]}
+        tgt_shapes = {'tgt': [None],'targetmask':[None]}
 
-        input_types = {'sentence': tf.int32, 'sentencelength': tf.int32}
+        input_types = {'sentence': tf.int32}
 
-        tgt_types = {'tgt': tf.int32}
+        tgt_types = {'tgt': tf.int32,'targetmask':tf.int32}
 
-        input_defaults = {'sentence': 0, 'sentencelength': 0}
+        input_defaults = {'sentence': 0}
 
-        tgt_defaults = {'tgt': 0}
+        tgt_defaults = {'tgt': 0,'targetmask':0}
 
         self._shapes = input_shapes, tgt_shapes
         self._types = input_types, tgt_types
@@ -84,14 +84,14 @@ class InputFnNER(InputFnNLPBase):
                 last_index=None
         #Add SOS-Tag and EOS-Tag
         enc_sentence=[self._tok_vocab_size]+enc_sentence+[self._tok_vocab_size+1]
+        targetmask=[0]+len(tar_real)*[1] + [0]
         tar_real=[self.get_num_tags()]+tar_real+[self.get_num_tags()+1]
-        sentencelength=[len(tar_real)]
         if self._flags.predict_mode:
-            inputs = {'sentence':[enc_sentence],'sentencelength':[sentencelength]}
-            tgts = {'tgt': [tar_real]}
+            inputs = {'sentence':[enc_sentence]}
+            tgts = {'tgt': [tar_real],'targetmask':targetmask}
             return inputs, tgts, training_data
-        inputs = {'sentence':enc_sentence,'sentencelength':sentencelength}
-        tgts = {'tgt': tar_real}
+        inputs = {'sentence':enc_sentence}
+        tgts = {'tgt': tar_real,'targetmask':targetmask}
 
         return inputs, tgts
 
@@ -109,5 +109,6 @@ class InputFnNER(InputFnNLPBase):
             #print("Yield Sentence")
             for i in range(len(training_data)):
                 yield self._parse_fn(training_data[i])
+
 
 
