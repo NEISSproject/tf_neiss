@@ -153,9 +153,12 @@ class TrainerBase(object):
         if tf.train.get_checkpoint_state(self._flags.checkpoint_dir):
             print("restore from checkpoint: {}".format(self._flags.checkpoint_dir))
             checkpoint_obj.restore(tf.train.latest_checkpoint(self._flags.checkpoint_dir))
+        else:
+            self._model.init_new_training()
         if self._model.graph_train.global_epoch.numpy() >= self._flags.epochs:
             print('Loaded model already in epoch {}. Evaluation...'.format(
                 self._model.graph_train.global_epoch.numpy()))
+            self._model.set_mode("eval")
             self.eval()  # run eval() if epochs reach on first attempt
             self.export()
             return 0

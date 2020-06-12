@@ -88,7 +88,7 @@ class InputFnNER(InputFnNLPBase):
         tar_real=[self.get_num_tags()]+tar_real+[self.get_num_tags()+1]
         if self._flags.predict_mode:
             inputs = {'sentence':[enc_sentence]}
-            tgts = {'tgt': [tar_real],'targetmask':targetmask}
+            tgts = {'tgt': [tar_real],'targetmask':[targetmask]}
             return inputs, tgts, training_data
         inputs = {'sentence':enc_sentence}
         tgts = {'tgt': tar_real,'targetmask':targetmask}

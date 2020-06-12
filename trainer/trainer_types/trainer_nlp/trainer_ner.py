@@ -76,8 +76,6 @@ class TrainerNER(TrainerBase):
         @tf.function(input_signature=call_graph_signature)
         def call_graph(input_features_, targets_):
             self._model.graph_eval._graph_out = self._model.graph_eval(input_features_, training=False)
-            loss_ = self._model.loss(predictions=self._model.graph_eval._graph_out, targets=targets_)
-            self._model.graph_eval._graph_out["loss"] = tf.reduce_mean(loss_)
             return self._model.graph_eval._graph_out
 
 
@@ -88,6 +86,7 @@ class TrainerNER(TrainerBase):
         for fname in self._fnames:
             prediction_list=[]
             for (input_features, targets, training_data) in self._input_fn_generator.generator_fn_predict(fname):
+                input_features['sentence']=tf.cast(input_features['sentence'],tf.int32)
                 pred_out_dict = call_graph(input_features, targets)
                 pred_ids= pred_out_dict["pred_ids"][0].numpy()[1:-1]
                 predicted_data=integrate_prediction_into_train_data(training_data,pred_ids)

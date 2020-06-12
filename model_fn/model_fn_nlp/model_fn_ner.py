@@ -78,4 +78,9 @@ class ModelNER(ModelBase):
         self.metrics[self._mode]["precision"].update_state(true_positiv_indexes, tf.cast(tf.raw_ops.NotEqual(x=graph_out_dict['pred_ids'],y=self._tag_string_mapper.get_oov_id()),tf.int32), weights)
         self.metrics[self._mode]["recall"].update_state(tf.cast(tf.raw_ops.NotEqual(x=targets['tgt'],y=self._tag_string_mapper.get_oov_id()),tf.int32), true_positiv_indexes, weights)
 
+    def init_new_training(self):
+        checkpoint_obj = tf.train.Checkpoint(model=self.graph_train._pretrained_bert)
+        if tf.train.get_checkpoint_state(self._flags.bert_dir):
+            print("load pretrained bert_model from bert checkpoint: {}".format(self._flags.bert_dir))
+            checkpoint_obj.restore(tf.train.latest_checkpoint(self._flags.bert_dir)).expect_partial()
 

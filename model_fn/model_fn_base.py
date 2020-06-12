@@ -178,6 +178,12 @@ class ModelBase(object):
         """
         pass
 
+    def init_new_training(self):
+        """
+        Runs before a new training starts. Can be used e.g. to load pretrained parts of the model
+        """
+        pass
+
     def print_evaluate(self, output_nodes_dict, target_dict):
         """is called in lav(load_and_validate) in each batch"""
         pass
