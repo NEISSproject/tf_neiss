@@ -27,15 +27,15 @@ class InputFnBertSOP(InputFnNLPBase):
 
         input_shapes = {'text': [None], 'masked_index': [None]}
 
-        tgt_shapes = {'tgt': [None]}
+        tgt_shapes = {'tgt_mlm': [None],'tgt_sop':[None]}
 
         input_types = {'text': tf.int32, 'masked_index': tf.int32}
 
-        tgt_types = {'tgt': tf.int32}
+        tgt_types = {'tgt_mlm': tf.int32,'tgt_sop':tf.int32}
 
         input_defaults = {'text': 0, 'masked_index': 0}
 
-        tgt_defaults = {'tgt': 0}
+        tgt_defaults = {'tgt_mlm': 0,'tgt_sop':0}
 
         self._shapes = input_shapes, tgt_shapes
         self._types = input_types, tgt_types
@@ -50,13 +50,15 @@ class InputFnBertSOP(InputFnNLPBase):
         if self.switch_sentences():
             text_index_list=[self._tok_vocab_size]+sec_mask_enc_sentence+[self._tok_vocab_size+1]+first_mask_enc_sentence+[self._tok_vocab_size+1]
             masked_index_list=[0]+sec_masked_index_list+[0]+first_masked_index_list+[0]
-            tar=[0]+sec_enc_sentence+[self._tok_vocab_size+1]+first_enc_sentence+[self._tok_vocab_size+1]
+            tar_mlm=[self._tok_vocab_size]+sec_enc_sentence+[self._tok_vocab_size+1]+first_enc_sentence+[self._tok_vocab_size+1]
+            tar_sop=[0]
         else:
             text_index_list=[self._tok_vocab_size]+first_mask_enc_sentence+[self._tok_vocab_size+1]+sec_mask_enc_sentence+[self._tok_vocab_size+1]
             masked_index_list=[0]+first_masked_index_list+[0]+sec_masked_index_list+[0]
-            tar=[1]+first_enc_sentence+[self._tok_vocab_size+1]+sec_enc_sentence+[self._tok_vocab_size+1]
+            tar_mlm=[self._tok_vocab_size]+first_enc_sentence+[self._tok_vocab_size+1]+sec_enc_sentence+[self._tok_vocab_size+1]
+            tar_sop=[1]
         inputs = {'text':text_index_list,'masked_index':masked_index_list}
-        tgts = {'tgt': tar}
+        tgts = {'tgt_mlm': tar_mlm,'tgt_sop': tar_sop}
 
         return inputs, tgts
 
