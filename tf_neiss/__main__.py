@@ -7,7 +7,7 @@ import unittest
 import doctest
 import pathlib
 import argparse
-from .__about__ import *
+from .__init__ import *
 
 
 def run_doctests():
