@@ -3,62 +3,53 @@
 w7x option starter
 """
 import sys
-import unittest
-import doctest
-import pathlib
 import argparse
-from .__init__ import *
+import tf_neiss
 
 
-def run_doctests():
-    """
-    Find all doctests and execute them
-    """
-    this_dir = pathlib.Path(__file__).parent.resolve()
-    for f in list(this_dir.glob('**/*.py')):
-        doctest.testfile(str(f.resolve()),
-                         module_relative=False)  # , verbose=True, optionflags=doctest.ELLIPSIS)
+class SomeAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super().__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print("Example action invoked by manage in namespace: %r with values %r"
+              " and option string %r" % (namespace, values, option_string))
+        setattr(namespace, self.dest, values)
 
 
-def load_unittests(loader=None, suite=None):
-    if loader is None:
-        loader = unittest.TestLoader()
-    if suite is None:
-        suite = unittest.TestSuite()
-    parent = pathlib.Path(__file__).parent.parent
-    for f in list(parent.glob('*/test*.py')):
-        sys.path.insert(0, str(f.parent))
-        mod = __import__(f.name[:-3])
-        for test in loader.loadTestsFromModule(mod):
-            suite.addTests(test)
-        sys.path.remove(str(f.parent))
-    return suite
-
-
-def run_unittests(arg):
-    run_doctests()
-    # unittest.main(defaultTest='load_unittests')
+def manage(args):
+    print("Managing!")
+    print(args.x * args.y)
 
 
 def parse_args(args):
     # create the top-level parser
     parser = argparse.ArgumentParser(prog='tf_neiss app')
-    parser.add_argument('--version', action='version', version='v' + __version__,
+    parser.add_argument('--version', action='version',
+                        version='v' + tf_neiss.__version__,
                         help="Show program's version number and exit")
+    parser = argparse.ArgumentParser(prog='tf_neiss app')
 
     # subparsers
     subparsers = parser.add_subparsers(help='sub-command help')
 
     # create the parser for the "test" command
-    parserExtend = subparsers.add_parser('test', help='test help')
-    parserExtend.set_defaults(func=run_unittests)
+    example_sub_parser = subparsers.add_parser('manage', help='manage something')
+    example_sub_parser.add_argument('-x', type=int, default=1)
+    example_sub_parser.add_argument('-y', type=float, default=42.)
+    example_sub_parser.set_defaults(func=manage)
 
-    # If no arguments were used, print the base-level help which lists possible commands.
+    # If no arguments were used, print base-level help with possible commands.
     if len(args) == 0:
         parser.print_help(file=sys.stderr)
         sys.exit(1)
 
-    return parser.parse_args(args)
+    args = parser.parse_args(args)
+    # let argparse do the job of calling the appropriate function after
+    # argument parsing is complete
+    args.func(args)
 
 
 if __name__ == '__main__':

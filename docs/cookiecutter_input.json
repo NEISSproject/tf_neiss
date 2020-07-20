@@ -1,0 +1,19 @@
+{
+    "_template": "https://gitlab.com/dboe/dough.git",
+    "author": "Daniel B\u00f6ckenhoff",
+    "continuous_integration": "y",
+    "copyright_holder": "Daniel B\u00f6ckenhoff",
+    "copyright_license": "MIT License",
+    "data_science": "y",
+    "distribution_name": "tf_neiss",
+    "email": "dboe@ipp.mpg.de",
+    "keywords": "machine learning, tensorflow, artificial neural networks, supervised learning, keras",
+    "package_name": "tf_neiss",
+    "package_version": "0.0.1",
+    "pypi_username": "dboe",
+    "remote_namespace": "NEISSproject",
+    "remote_provider": "github.com",
+    "remote_username": "dboeckenhoff",
+    "summary": "Tensorflow toolkit for NEISS collaboration and partners"
+}
+

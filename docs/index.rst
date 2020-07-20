@@ -1,17 +1,19 @@
-Welcome to the documentation!
-=============================
+Welcome to tf_neiss's documentation!
+======================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   README.md
-
-   source/modules.rst
+   readme
+   installation
+   usage
+   source/modules
+   contributing
+   authors
 
 Indices and tables
 ==================
-
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
