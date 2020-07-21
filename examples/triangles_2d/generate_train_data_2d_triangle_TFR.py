@@ -10,7 +10,7 @@ import numpy as np
 import tensorflow as tf
 
 import tf_neiss.flags as flags
-from tf_neiss.misc import get_commit_id
+from tf_neiss.log import get_commit_id
 import tfr_helper
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # or any {'0', '1', '2'} set tensorflow logleve 2=warning

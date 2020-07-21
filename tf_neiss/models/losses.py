@@ -3,7 +3,7 @@ from itertools import permutations
 import numpy as np
 import tensorflow as tf
 
-from model_fn.util_model_fn import keras_compatible_layers
+from tf_neiss.models import keras_compatible_layers
 
 
 def point3_loss(target, prediction):
