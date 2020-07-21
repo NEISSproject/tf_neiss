@@ -1,7 +1,7 @@
 # general
 * use flake8 and black. Lots of unused imports etc
 * Unnecessary use of __dict__[] e.g. in util/flags FlagValues:
-    * Circumventing __setattr__ and __getattr__
+    * Bypassing __setattr__ and __getattr__
     * Much more complicated than necessary
 * avoid global variables. Much overused
 * move from script collection to api. This is crucial e.g. for metalearning
@@ -14,11 +14,11 @@
 * should be all part of a subfolder tf_neiss
 
 # test/test_requirements.py
-* is not a test but an installation procedure. I added an example of a proper unittest under tests/test_package.py
+* is not a test but an installation procedure. I added an example of a proper unittest under tests/test_package.py This can be called by simply typing `make test` or `pytest`
 * not necessary -> setup.cfg install_requires
 * now: pip install -e .
 * Missing tensorflow and tensorflow_addons requirements (added)
-* TODO: look through install_requires and through out what is not required actually. Due to the stuffing of this package with loads of special cases this ling could possibly be much longer than required.
+* TODO: look through install_requires and throw out what is not required actually. Due to the stuffing of this package with loads of special cases this list could possibly be much longer than required at the moment.
 
 # test/workdir_triangle2d/**/README.md
 * In case these are just placeholders for git to generate the folder, use a file called .gitkeep which is the convention
@@ -37,12 +37,10 @@
 
 # util/flags
 * Avoid global variables
-    * Global FLAGS dangerous, especially when overwriting on reload in e.g. trainer/trainer_base
+    * Global FLAGS and global_parser is/are dangerous, especially when overwriting on reload in e.g. trainer/trainer_base
         * Can lead to horrible to debug bugs
         * I even had a bug related to this when trying to get the  triangle2d example running: missing flags.FLAGS.parse_flags() at the end of the flags section in generate_train_data_2d_triangle_TFR.py
         * rather pass the unparsed parser around and parse it finally in the train() method
-    * get rid of global_parser
-        * make all the helper methods
 * add_argument wrappers: Rather complicated wrapping without much benefit
     * In any case it should not modify a global parser but modify a parser passed to the function.
     * Could well be methods of your class inheriting argparse.ArgumentParser
@@ -57,8 +55,9 @@
 * I removed the io_helpers and list_helpers files for now. TODO: You can tell me where these files should go and I will put them in again.
 
 # util/tools/split_train_val
-* This is a binary, not a library helpers collection like everything else in util
+* This is a script, not a library helpers collection like everything else in util
 * Highly specific and hardcoded (e.g. 500)
+* removed it
 
 # model_fn/util_model_fn
 * this is probably the most useful collection for the NEISS community
@@ -88,9 +87,17 @@
 * Added the most basic classes to module level namespace (see tf_neiss/__init__.py)
 
 # example with triangle2d
-* I moved one set of specifiy to examples/triangles_2d
+* I moved one set of specific files belonging to the triangles_2d group to examples/triangles_2d
 * I tried to make the bash script work but tensorflow tells me, the model was not built. TODO: This needs to be fixed.
 * This example could become a proper test by adding all stages as separate tests (real unittests) under tests/
 
 # Merging *base.py
 * I would further propose to merge all the definitions in *_base.py files into one file e.g. bases.py or core.py
+
+# Added some infrastructure
+* Automatically generated documentation (`make doc`). Can be uploaded to read-the-docs (already compatible - including)
+* Investigate code coverage (`make coverage`)
+* install by pip install -e .
+* install development dependencies by pip install -e .[dev]
+* Can be easily uploaded to pypi in order to make it publically available (I still need to check the travis settings)
+* have a look at the Makefile to see the options with make
