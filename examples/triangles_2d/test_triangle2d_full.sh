@@ -13,14 +13,14 @@ echo "#####"
 echo "Generate validation data:"
 echo "#####"
 
-PYTHONPATH=../../tf_neiss:$PYTHONPATH python -u generate_train_data_2d_triangle_TFR.py \
+python -u generate_train_data_2d_triangle_TFR.py \
     --to_log_file --mode "val" --data_id triangle2d_32_dummy
 
 echo "#####"
 echo "Train model on validation data:"
 echo "#####"
 echo ""
-PYTHONPATH=../../tf_neiss:$PYTHONPATH python -u trainer_triangle2d.py \
+python -u trainer_triangle2d.py \
     --train_lists "./lists/triangle2d_32_dummy_val.lst" \
     --val_list "./lists/triangle2d_32_dummy_val.lst" \
     --checkpoint_dir "models/triangle_dummy" \
@@ -31,7 +31,7 @@ echo "#####"
 echo "Test model on validation data:"
 echo "#####"
 echo ""
-PYTHONPATH=../../tf_neiss:$PYTHONPATH python -u lav_triangle2d.py \
+python -u lav_triangle2d.py \
     --model_dir models/triangle_dummy \
     --val_list \
     ./lists/triangle2d_32_dummy_val.lst \

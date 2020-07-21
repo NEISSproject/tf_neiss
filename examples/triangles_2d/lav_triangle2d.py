@@ -1,9 +1,9 @@
 import os
 
-from trainer.lav_base import LavBase
-import model_fn.model_fn_2d.model_fn_2dtriangle as model_fn_classes
-import util.flags as flags
-from input_fn.input_fn_2d.input_fn_generator_triangle2d import InputFn2DT
+from tf_neiss import LavBase
+import model_fn_2dtriangle as model_fn_classes
+import tf_neiss.flags as flags
+from input_fn_generator_triangle2d import InputFn2DT
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # set tf log_level to warning(2), default: info(1)
 os.environ['TF_CUDNN_USE_AUTOTUNE'] = '0'  # no tune necessary, short running time

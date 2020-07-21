@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.tfr_helper as tfr_helper
-from input_fn.input_fn_generator_base import InputFnBase
+import tfr_helper
+from tf_neiss import InputFnBase
 
 
 class InputFn2DT(InputFnBase):

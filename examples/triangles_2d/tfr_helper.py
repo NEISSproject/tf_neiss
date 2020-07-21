@@ -4,8 +4,8 @@ import time
 import numpy as np
 import tensorflow as tf
 
-import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.polygone_2d_helper as polygon2d
-import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.triangle_2d_helper as t2d
+import polygone_2d_helper as polygon2d
+import triangle_2d_helper as t2d
 
 
 def _int64_feature(value):

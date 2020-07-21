@@ -3,14 +3,14 @@ import time
 
 import tensorflow as tf
 
-import util.flags as flags
+import tf_neiss.flags as flags
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 flags.define_string('model_dir', '', 'dir with "export"-folder which was checkpoint_dir before or path to "export"')
-flags.define_string('val_list', 'lists/dummy_val.lst', '.lst-file specifying the dataset used for validation')
-flags.define_integer('val_batch_size', 100, 'number of elements in a val_batch')
-flags.define_list('gpu_devices', int, 'space seperated list of GPU indices to use. ', " ", [])
+# flags.define_string('val_list', 'lists/dummy_val.lst', '.lst-file specifying the dataset used for validation')
+# flags.define_integer('val_batch_size', 100, 'number of elements in a val_batch')
+# flags.define_list('gpu_devices', int, 'space seperated list of GPU indices to use. ', " ", [])
 flags.FLAGS.parse_flags()
 flags.define_float('gpu_memory', 0.0, 'amount of gpu memory in MB if set above 0')
 flags.define_string("debug_dir", "", "specify dir to save debug outputs, saves are model specific ")

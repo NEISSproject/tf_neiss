@@ -5,8 +5,8 @@ import os
 import tensorflow as tf
 import tensorflow_addons as tfa
 
-import model_fn.util_model_fn.optimizer as optimizers
-import util.flags as flags
+import tf_neiss.models.optimizers as optimizers
+import tf_neiss.flags as flags
 
 logger = logging.getLogger(__name__)
 # logger.setLevel("DEBUG")

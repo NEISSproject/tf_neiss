@@ -6,10 +6,10 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.triangle_2d_helper as t2d
-import model_fn.model_fn_2d.util_2d.graphs_2d as graphs
-import model_fn.util_model_fn.custom_layers as c_layer
-from model_fn.model_fn_base import ModelBase
+import triangle_2d_helper as t2d
+import graphs_2d as graphs
+import tf_neiss.models.layers as c_layer
+from tf_neiss import ModelBase
 
 
 class ModelTriangle(ModelBase):

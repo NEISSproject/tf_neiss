@@ -4,7 +4,7 @@ import tensorflow_addons as tfa
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 
-from util.flags import update_params
+from tf_neiss.flags import update_params
 
 
 class DecayOptimizer(object):

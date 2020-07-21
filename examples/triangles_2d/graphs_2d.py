@@ -1,8 +1,8 @@
 import tensorflow as tf
 
-import model_fn.util_model_fn.keras_compatible_layers as layers
-from model_fn.graph_base import GraphBase
-from util.flags import update_params
+import tf_neiss.models.keras_compatible_layers as layers
+from tf_neiss import GraphBase
+from tf_neiss.flags import update_params
 
 
 class Graph2D(GraphBase):
