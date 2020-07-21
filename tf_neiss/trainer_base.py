@@ -3,8 +3,8 @@ import time
 
 import tensorflow as tf
 
-import util.flags as flags
-from util.misc import get_commit_id, Tee
+import tf_neiss.flags as flags
+from tf_neiss.misc import get_commit_id, Tee
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # Training

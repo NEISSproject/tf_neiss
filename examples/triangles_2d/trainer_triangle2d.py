@@ -1,9 +1,9 @@
 import os
 import logging
-from trainer.trainer_base import TrainerBase
-import model_fn.model_fn_2d.model_fn_2dtriangle as models
-import util.flags as flags
-from input_fn.input_fn_2d.input_fn_generator_triangle2d import InputFn2DT
+from tf_neiss import TrainerBase
+import model_fn_2dtriangle as models
+import tf_neiss.flags as flags
+from input_fn_generator_triangle2d import InputFn2DT
 
 # Model parameter
 # ===============

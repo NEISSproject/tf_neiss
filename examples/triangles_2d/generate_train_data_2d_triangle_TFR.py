@@ -9,9 +9,9 @@ import numpy as np
 
 import tensorflow as tf
 
-import util.flags as flags
-import input_fn.input_fn_2d.data_gen_2dt.data_gen_t2d_util.tfr_helper as tfr_helper
-from util.misc import get_commit_id
+import tf_neiss.flags as flags
+from tf_neiss.misc import get_commit_id
+import tfr_helper
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # or any {'0', '1', '2'} set tensorflow logleve 2=warning
 os.environ["CUDA_VISIBLE_DEVICES"] = ""  # hide all gpu's until needed
@@ -27,6 +27,7 @@ flags.define_list('files_train_val', int, "[int(train_files), int(val_files)]",
                   'files to generate for train data/val data', default_value=[1000, 10])
 flags.define_integer("samples_per_file", 1000, "set number of samples saved in each file")
 flags.define_integer("jobs", -1, "set number of samples saved in each file")
+flags.FLAGS.parse_flags()
 
 if __name__ == "__main__":
     main_data_out = "data/synthetic_data/{}".format(flags.FLAGS.data_id)
