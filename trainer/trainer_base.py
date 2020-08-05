@@ -165,9 +165,6 @@ class TrainerBase(object):
         else:
             print('starting in epoch ' + str(self._model.graph_train.global_epoch.numpy()))
 
-        if not self._train_dataset:
-            self._train_dataset = self._input_fn_generator.get_input_fn_train()
-
         train_step_signature = self._model.get_call_graph_signature()
 
         @tf.function(input_signature=train_step_signature)
@@ -189,7 +186,7 @@ class TrainerBase(object):
             self._model.set_mode("train")
             train_batch_number = 0
             #use take and not break see https://github.com/tensorflow/tensorflow/issues/19499
-            for (batch, (input_features, targets)) in enumerate(self._train_dataset.take(int(self._flags.samples_per_epoch / self._flags.train_batch_size))):
+            for (batch, (input_features, targets)) in enumerate(self._input_fn_generator.get_input_fn_train().take(int(self._flags.samples_per_epoch / self._flags.train_batch_size))):
                 # do the _train_step as tf.function to improve performance
                 train_out_dict = _train_step_intern(input_features, targets)
                 self._model.to_tensorboard(train_out_dict, targets, input_features)
@@ -198,7 +195,6 @@ class TrainerBase(object):
                 #if batch + 1 >= int(self._flags.samples_per_epoch / self._flags.train_batch_size):
                     # stop endless '.repeat()' dataset with break
                 #    break
-
             self.epoch_loss /= float(train_batch_number + 1.0)
             self._model.graph_train.global_epoch.assign_add(1)
             print("\nEPOCH:   {:10.0f}, optimizer steps: {:9}".format(self._model.graph_train.global_epoch.numpy(),
@@ -246,6 +242,7 @@ class TrainerBase(object):
         print("val-loss:{:10.3f}, samples/second:{:8.1f}, time:{:6.1f}"
               .format(val_loss, (val_batch_number + 1) * self._flags.val_batch_size /
                       (time.time() - t_val), time.time() - t_val))
+        print("precision:",self._model.metrics["eval"]["precision"].result())
 
     def export(self):
         # Export as saved model
