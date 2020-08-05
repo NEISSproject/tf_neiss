@@ -242,7 +242,6 @@ class TrainerBase(object):
         print("val-loss:{:10.3f}, samples/second:{:8.1f}, time:{:6.1f}"
               .format(val_loss, (val_batch_number + 1) * self._flags.val_batch_size /
                       (time.time() - t_val), time.time() - t_val))
-        print("precision:",self._model.metrics["eval"]["precision"].result())
 
     def export(self):
         # Export as saved model
