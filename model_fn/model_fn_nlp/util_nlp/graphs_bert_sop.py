@@ -21,6 +21,37 @@ class BERTMiniSOP(GraphBase):
         self._graph_out = {"mlm_pred_ids": mlm_pred_ids, 'mlm_logits': mlm_logits, "sop_pred_ids": sop_pred_ids, 'sop_logits': sop_logits,'masked_index':inputs["masked_index"]}
         return self._graph_out
 
+class BERTMiniASSpecial(GraphBase):
+    def __init__(self, params):
+        super(BERTMiniASSpecial, self).__init__(params)
+        self._flags = params['flags']
+        self.bert=BERTMini(params)
+        self._tracked_layers["last_layer_nsp"] = tf.keras.layers.Dense(2)
+
+    def call(self, inputs, training=None, mask=None):
+        bert_out = self.bert(inputs)
+
+        nsp_logits = self._tracked_layers["last_layer_nsp"](bert_out['enc_output'])  # (batch_size, tar_seq_len, 2)
+        self._graph_out = {'enc_output': bert_out['enc_output'], 'nsp_logits': nsp_logits}
+        return self._graph_out
+
+class BERTMiniNSPAS(GraphBase):
+    def __init__(self, params):
+        super(BERTMiniNSPAS, self).__init__(params)
+        self._flags = params['flags']
+        self.bert=BERTMiniASSpecial(params)
+        self._tracked_layers["last_layer_mlm"] = tf.keras.layers.Dense(params['tok_size'])
+
+    def call(self, inputs, training=None, mask=None):
+        bert_out = self.bert(inputs)
+
+        mlm_logits = self._tracked_layers["last_layer_mlm"](bert_out['enc_output'])  # (batch_size, tar_seq_len, target_vocab_size)
+        nsp_logits = bert_out['nsp_logits']
+        mlm_pred_ids = tf.argmax(input=mlm_logits, axis=2, output_type=tf.int32)
+        nsp_pred_ids = tf.argmax(input=nsp_logits, axis=2, output_type=tf.int32)
+        self._graph_out = {"mlm_pred_ids": mlm_pred_ids, 'mlm_logits': mlm_logits, "nsp_pred_ids": nsp_pred_ids, 'nsp_logits': nsp_logits,'masked_index':inputs["masked_index"]}
+        return self._graph_out
+
 if __name__ == '__main__':
     final_output=tf.cast([[1.25,2.25,0.5],[1.3,0.4,3.3]],tf.float32)
     pred_ids = tf.argmax(input=final_output, axis=1, output_type=tf.int32)
