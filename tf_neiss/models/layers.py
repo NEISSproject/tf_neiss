@@ -8,9 +8,9 @@ class ScatterPolygonTF(tf.keras.layers.Layer):
         self._with_batch_dim_tf = with_batch_dim
         self.mydtype = dtype
         if self.mydtype == tf.float64:
-            self.complex_dtype=tf.complex128
+            self.complex_dtype = tf.complex128
         elif self.mydtype == tf.float32:
-            self.complex_dtype=tf.complex64
+            self.complex_dtype = tf.complex64
         else:
             raise TypeError("only tf.float32 and tf.float64 are supported! Found: {}".format(self.mydtype))
         if self._with_batch_dim_tf:
@@ -49,22 +49,30 @@ class ScatterPolygonTF(tf.keras.layers.Layer):
         p0p1_tf = p1_tf - p0_tf
         if self._with_batch_dim_tf:
             scale_tf = tf.cast(1.0 / tf.math.abs(self._q_tf[0] ** 2 + self._q_tf[1] ** 2), dtype=self.complex_dtype)
-            f_p0_tf = -tf.cast(1.0, dtype=self.complex_dtype) * tf.math.exp(j_tf * (self.batch_complex_dot(p0_tf, self._q_tf) + c_tfc))
-            f_p1_tf = -tf.cast(1.0, dtype=self.complex_dtype) * tf.math.exp(j_tf * (self.batch_complex_dot(p1_tf, self._q_tf) + c_tfc))
-            case1_array_tf = scale_tf * self.batch_complex_dot(p0p1_tf, q_cross_tf) * (f_p1_tf - f_p0_tf) / self.batch_complex_dot(p0p1_tf,
-                                                                                                             self._q_tf)
+            f_p0_tf = -tf.cast(1.0, dtype=self.complex_dtype) * tf.math.exp(
+                j_tf * (self.batch_complex_dot(p0_tf, self._q_tf) + c_tfc))
+            f_p1_tf = -tf.cast(1.0, dtype=self.complex_dtype) * tf.math.exp(
+                j_tf * (self.batch_complex_dot(p1_tf, self._q_tf) + c_tfc))
+            case1_array_tf = scale_tf * self.batch_complex_dot(p0p1_tf, q_cross_tf) * (
+                        f_p1_tf - f_p0_tf) / self.batch_complex_dot(p0p1_tf,
+                                                                    self._q_tf)
             case2_array_tf = scale_tf * self.batch_complex_dot(p0p1_tf, q_cross_tf) * -j_tf * tf.math.exp(
                 j_tf * self.batch_complex_dot(p0_tf, self._q_tf) + c_tfc)
-            res_array_tf = tf.where(tf.math.abs(self.batch_complex_dot(p0p1_tf, self._q_tf)) >= 0.0001, case1_array_tf, case2_array_tf)
+            res_array_tf = tf.where(tf.math.abs(self.batch_complex_dot(p0p1_tf, self._q_tf)) >= 0.0001, case1_array_tf,
+                                    case2_array_tf)
         else:
             scale_tf = tf.cast(1.0 / tf.math.abs(self._q_tf[0] ** 2 + self._q_tf[1] ** 2), dtype=self.complex_dtype)
-            f_p0_tf = -tf.cast(1.0, dtype=self.complex_dtype) * tf.math.exp(j_tf * (self.complex_dot(p0_tf, self._q_tf) + c_tfc))
-            f_p1_tf = -tf.cast(1.0, dtype=self.complex_dtype) * tf.math.exp(j_tf * (self.complex_dot(p1_tf, self._q_tf) + c_tfc))
-            case1_array_tf = scale_tf * self.complex_dot(p0p1_tf, q_cross_tf) * (f_p1_tf - f_p0_tf) / self.complex_dot(p0p1_tf,
-                                                                                                             self._q_tf)
+            f_p0_tf = -tf.cast(1.0, dtype=self.complex_dtype) * tf.math.exp(
+                j_tf * (self.complex_dot(p0_tf, self._q_tf) + c_tfc))
+            f_p1_tf = -tf.cast(1.0, dtype=self.complex_dtype) * tf.math.exp(
+                j_tf * (self.complex_dot(p1_tf, self._q_tf) + c_tfc))
+            case1_array_tf = scale_tf * self.complex_dot(p0p1_tf, q_cross_tf) * (f_p1_tf - f_p0_tf) / self.complex_dot(
+                p0p1_tf,
+                self._q_tf)
             case2_array_tf = scale_tf * self.complex_dot(p0p1_tf, q_cross_tf) * -j_tf * tf.math.exp(
                 j_tf * self.complex_dot(p0_tf, self._q_tf) + c_tfc)
-            res_array_tf = tf.where(tf.math.abs(self.complex_dot(p0p1_tf, self._q_tf)) >= 0.0001, case1_array_tf, case2_array_tf)
+            res_array_tf = tf.where(tf.math.abs(self.complex_dot(p0p1_tf, self._q_tf)) >= 0.0001, case1_array_tf,
+                                    case2_array_tf)
 
         return res_array_tf
 
@@ -96,4 +104,3 @@ class ScatterPolygonTF(tf.keras.layers.Layer):
 
     def batch_complex_dot(self, a, b):
         return tf.cast(tf.einsum('j...i,i...->j...', a, b), dtype=self.complex_dtype)
-

@@ -2,8 +2,8 @@ import os
 import time
 
 import tensorflow as tf
-
 import tf_neiss.flags as flags
+
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 

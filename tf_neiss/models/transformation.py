@@ -128,7 +128,7 @@ def add_timing_signal_learned_batch(x,
             lookup_table = tf.concat((tf.zeros(shape=[1, channels]),
                                       lookup_table[1:, :]), 0)
 
-        time_encoding = layers.embedding_lookup(lookup_table, lookup_ids)
+        time_encoding = tf.nn.embedding_lookup(lookup_table, lookup_ids, )
         if scale:
             time_encoding = time_encoding * (channels ** 0.5)
 

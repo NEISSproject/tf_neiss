@@ -6,16 +6,13 @@ import time
 import uuid
 
 import numpy as np
-
 import tensorflow as tf
-
 import tf_neiss.flags as flags
-from tf_neiss.log import get_commit_id
 import tfr_helper
+from tf_neiss.log import get_commit_id
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # or any {'0', '1', '2'} set tensorflow logleve 2=warning
 os.environ["CUDA_VISIBLE_DEVICES"] = ""  # hide all gpu's until needed
-
 
 # ========
 flags.define_string("data_id", "magic_synthetic_dataset", "select a name unique name for the dataset")

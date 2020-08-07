@@ -1,4 +1,4 @@
-.. highlight:: shell
+pi.. highlight:: shell
 
 ============
 Contributing
@@ -15,7 +15,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://github.com/dboeckenhoff/tf_neiss/issues.
+Report bugs at https://github.com/NEISSproject/tf_neiss/issues.
 
 If you are reporting a bug, please include:
 
@@ -71,11 +71,12 @@ Ready to contribute? Here's how to set up `tf_neiss` for local development.
 1. Fork the `tf_neiss` repo.
 2. Clone your fork locally::
 
-    $ git clone git@github.com:dboeckenhoff/tf_neiss.git
+    $ git clone git@github.com:NEISSproject/tf_neiss.git
 
 3. Set up your fork for local development::
 
     $ cd tf_neiss/
+    # make sure you have pip>=19.0 and setuptools>=41.0.0 installed
     $ pip install .[dev]
 
 4. Step 3. already installed `pre-commit <https://pre-commit.com/>`_. Initialize it by running::

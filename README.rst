@@ -40,7 +40,7 @@ Licensed under the ``MIT License``
 Resources
 ---------
 
-* Source code: https://github.com/dboeckenhoff/tf_neiss
+* Source code: https://github.com/NEISSproject/tf_neiss
 * Documentation: https://tf-neiss.readthedocs.io
 * Pypi: https://pypi.python.org/pypi/tf_neiss
 

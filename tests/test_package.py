@@ -17,4 +17,7 @@ class Test_tf_neiss(unittest.TestCase):
     def test_version_type(self):
         """Assure that version type is str."""
         import tf_neiss
+        import tensorflow as tf
         self.assertIsInstance(tf_neiss.__version__, str)
+        self.assertGreaterEqual(tf.__version__, "2.0")
+

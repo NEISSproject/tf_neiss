@@ -149,23 +149,24 @@ class ModelBase(object):
 
     def write_tensorboard(self):
         """Write metrics to tensorboard-file (it's called after each epoch) and reset tf.keras.metrics"""
-        with self.summary_writer[self._mode].as_default():
-            if self._mode_training:
-                tf.summary.scalar("learning_rate",
-                                  self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations - 1),
-                                  step=self.optimizer.iterations - 1)
-                tf.summary.scalar("learning_rate", self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations),
-                                  step=self.optimizer.iterations)
-            else:
-                # add
-                pass
+        if self._flags.hasKey("tensorboard") and self._flags.tensorboard:
+            with self.summary_writer[self._mode].as_default():
+                if self._mode_training:
+                    tf.summary.scalar("learning_rate",
+                                      self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations - 1),
+                                      step=self.optimizer.iterations - 1)
+                    tf.summary.scalar("learning_rate", self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations),
+                                      step=self.optimizer.iterations)
+                else:
+                    # add
+                    pass
 
-            logger.info("Reset all metics {}".format(self._mode))
-            for metric in self.metrics[self._mode]:
-                logger.debug("Write metric: {} with tf.name: {}".format(metric, self.metrics[self._mode][metric].name))
-                tf.summary.scalar(metric, self.metrics[self._mode][metric].result(), step=self.graph_train.global_epoch)
-                logger.debug("Reset metric: {} with tf.name: {}".format(metric, self.metrics[self._mode][metric].name))
-                self.metrics[self._mode][metric].reset_states()
+                logger.info("Reset all metics {}".format(self._mode))
+                for metric in self.metrics[self._mode]:
+                    logger.debug("Write metric: {} with tf.name: {}".format(metric, self.metrics[self._mode][metric].name))
+                    tf.summary.scalar(metric, self.metrics[self._mode][metric].result(), step=self.graph_train.global_epoch)
+                    logger.debug("Reset metric: {} with tf.name: {}".format(metric, self.metrics[self._mode][metric].name))
+                    self.metrics[self._mode][metric].reset_states()
 
     def to_tensorboard(self, graph_out_dict, targets, input_features):
         """update tf.keras.metrics with this function (it's called after each batch"""

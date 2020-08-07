@@ -2,8 +2,9 @@
 """
 w7x option starter
 """
-import sys
 import argparse
+import sys
+
 import tf_neiss
 
 

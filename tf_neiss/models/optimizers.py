@@ -89,12 +89,13 @@ class FinalDecayOptimizer(DecayOptimizer):
         """override learning rate schedule of the inherited class add cosine decrease in the final epochs"""
         if not self._learn_rate_schedule:
             self._learn_rate_schedule = CosineDecaySchedule(self._optimizer_params["learning_rate"],
-                                     self._flags.samples_per_epoch // self._flags.train_batch_size,
-                                     self._optimizer_params["lr_decay_rate"],
-                                     self._optimizer_params["decay_fraction"],
-                                     self._flags.epochs,
-                                     self._optimizer_params["final_epochs"])
+                                                            self._flags.samples_per_epoch // self._flags.train_batch_size,
+                                                            self._optimizer_params["lr_decay_rate"],
+                                                            self._optimizer_params["decay_fraction"],
+                                                            self._flags.epochs,
+                                                            self._optimizer_params["final_epochs"])
         return self._learn_rate_schedule
+
 
 class WarmupDecayOptimizer(DecayOptimizer):
     def __init__(self, params):
@@ -106,12 +107,13 @@ class WarmupDecayOptimizer(DecayOptimizer):
     def _get_lr(self):
         """override learning rate schedule of the inherited class add cosine decrease in the final epochs"""
         if not self._learn_rate_schedule:
-            self._learn_rate_schedule = WarmupSchedule(self._optimizer_params["d_model"],self._optimizer_params["warmup_steps"])
+            self._learn_rate_schedule = WarmupSchedule(self._optimizer_params["d_model"],
+                                                       self._optimizer_params["warmup_steps"])
         return self._learn_rate_schedule
 
     def get_current_learning_rate(self, step=None):
         if step:
-            return self._learn_rate_schedule(tf.cast(step,tf.float32))
+            return self._learn_rate_schedule(tf.cast(step, tf.float32))
         else:
             return self._learn_rate_schedule(self._keras_optimizer.iterations)
 
@@ -162,40 +164,46 @@ class CosineDecaySchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
             "name": self.name
         }
 
+
 class WarmupSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-  def __init__(self, d_model, warmup_steps=4000):
-    super(WarmupSchedule, self).__init__()
+    def __init__(self, d_model, warmup_steps=4000):
+        super(WarmupSchedule, self).__init__()
 
-    self.d_model = d_model
-    self.d_model = tf.cast(self.d_model, tf.float32)
+        self.d_model = d_model
+        self.d_model = tf.cast(self.d_model, tf.float32)
 
-    self.warmup_steps = warmup_steps
+        self.warmup_steps = warmup_steps
 
-  def __call__(self, step):
-    arg1 = tf.math.rsqrt(step)
-    arg2 = step * (self.warmup_steps ** -1.5)
+    def __call__(self, step):
+        arg1 = tf.math.rsqrt(step)
+        arg2 = step * (self.warmup_steps ** -1.5)
 
-    return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+        return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
 
 if __name__ == '__main__':
-    #import matplotlib.pyplot as plt
+    # import matplotlib.pyplot as plt
     import pylab
     import numpy as np
-    temp_learning_rate_schedule = WarmupSchedule(512,100000)
-    comp_temp_learning_rate_schedule = WarmupSchedule(512,375000)
-    comp2_temp_learning_rate_schedule = WarmupSchedule(128,4000)
+
+    temp_learning_rate_schedule = WarmupSchedule(512, 100000)
+    comp_temp_learning_rate_schedule = WarmupSchedule(512, 375000)
+    comp2_temp_learning_rate_schedule = WarmupSchedule(128, 4000)
+
+
     def get_current_learning_rate(temp_learning_rate_schedule, step=None):
         if step:
-            return temp_learning_rate_schedule(tf.cast(step,tf.float32))
+            return temp_learning_rate_schedule(tf.cast(step, tf.float32))
         else:
             return temp_learning_rate_schedule(step)
-    x=np.linspace(1,1000000,1000)
-    #print(x)
-    y=[get_current_learning_rate(temp_learning_rate_schedule,x[i]) for i in range(len(x))]
-    pylab.plot(x,y)
-    y=[get_current_learning_rate(comp_temp_learning_rate_schedule,x[i]) for i in range(len(x))]
-    pylab.plot(x,y)#,'co')
-    y=[get_current_learning_rate(comp2_temp_learning_rate_schedule,x[i]) for i in range(len(x))]
-    pylab.plot(x,y)
+
+
+    x = np.linspace(1, 1000000, 1000)
+    # print(x)
+    y = [get_current_learning_rate(temp_learning_rate_schedule, x[i]) for i in range(len(x))]
+    pylab.plot(x, y)
+    y = [get_current_learning_rate(comp_temp_learning_rate_schedule, x[i]) for i in range(len(x))]
+    pylab.plot(x, y)  # ,'co')
+    y = [get_current_learning_rate(comp2_temp_learning_rate_schedule, x[i]) for i in range(len(x))]
+    pylab.plot(x, y)
     pylab.show()

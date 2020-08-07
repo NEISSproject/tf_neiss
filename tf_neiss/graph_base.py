@@ -37,4 +37,3 @@ class GraphBase(tf.keras.Model):
         for key in sorted(list(self._graph_out)):
             self.outputs.append(build_out[key])
             self.output_names.append(key)
-

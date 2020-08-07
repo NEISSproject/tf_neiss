@@ -143,7 +143,7 @@ class TrainerBase(object):
             self._model.set_optimizer()
             self._model.set_interface(self._input_fn_generator.get_input_fn_val())
             self._model.graph_train.print_params()
-            self._model.graph_train.summary()
+            # self._model.graph_train.summary()
 
         checkpoint_obj = tf.train.Checkpoint(step=self._model.graph_train.global_step, optimizer=self._model.optimizer,
                                              model=self._model.graph_train)

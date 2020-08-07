@@ -42,8 +42,8 @@ python -u lav_triangle2d.py \
     1 \
     --plot True \
 
-echo "Copy result to workdir"
-cp ./models/triangle_dummy/plot_summary.pdf ./
+echo "Copy result to reports"
+cp ./models/triangle_dummy/plot_summary.pdf ./reports
 echo "Done."
 
 
@@ -51,9 +51,15 @@ echo "#####"
 echo "Clean up..."
 echo "#####"
 echo ""
-for dir in "./models/triangle_dummy" "./data/triangle2d_316_dummy"; do
+for dir in "./models/triangle_dummy" "./data/triangle2d_316_dummy" "data/synthetic_data/triangle2d_32_dummy"; do
     if [ -d "$dir" ]; then
         rm -r "$dir"
+    fi
+done
+
+for file in "./lists/triangle2d_32_dummy_val.lst" "./data/triangle2d_316_dummy"; do
+    if [ -f "$file" ]; then
+        rm "$file"
     fi
 done
 echo "Done."
