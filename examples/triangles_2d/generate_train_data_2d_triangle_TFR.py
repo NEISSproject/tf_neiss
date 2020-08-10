@@ -27,20 +27,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""  # hide all gpu's until needed
 # flags.define_integer("jobs", -1, "set number of samples saved in each file")
 # flags.FLAGS.parse_flags()
 
-parser = argparse.ArgumentParser("Parser of 'generate train data 2d triangle TFR'")
-parser.add_argument("--data_id", default="magic_synthetic_dataset", type=str,
-                    help="a unique id for the dataset, the folder name where it is saved")
-parser.add_argument("--to_log_file", default=False, type=bool,
-                    help="if set redirect stdout & stderr to this file in data/syntetic_data/<data_id>/<log-file.log>")
-parser.add_argument("--complex_phi", default=False, type=bool, help="use values for a and b not depending from phi")
-parser.add_argument("--mode", default="val", type=str, help="select 'val' or 'train'")
-parser.add_argument('--files_train_val', type=list,
-                    help="e.g.[int(train_files), int(val_files)] files to generate for train data/val data",
-                    default=[1000, 10])
-parser.add_argument("--samples_per_file", default=1000, help="set number of samples saved in each file")
-parser.add_argument("--jobs", default=-1, help="set parallelization, -1=use all cores")
-
-
 def main(args):
     arg_flags = args
     print(arg_flags.data_id)
@@ -170,8 +156,26 @@ def main(args):
     #                                             min_after_dequeue=10)
 
 
+def parse_args(args=None):
+    parser = argparse.ArgumentParser("Parser of 'generate train data 2d triangle TFR'")
+    parser.add_argument("--data_id", default="magic_synthetic_dataset", type=str,
+                        help="a unique id for the dataset, the folder name where it is saved")
+    parser.add_argument("--to_log_file", default=False, type=bool,
+                        help="if set redirect stdout & stderr to this file in data/syntetic_data/<data_id>/<log-file.log>")
+    parser.add_argument("--complex_phi", default=False, type=bool, help="use values for a and b not depending from phi")
+    parser.add_argument("--mode", default="val", type=str, help="select 'val' or 'train'")
+    parser.add_argument('--files_train_val', type=list,
+                        help="e.g.[int(train_files), int(val_files)] files to generate for train data/val data",
+                        default=[1000, 10])
+    parser.add_argument("--samples_per_file", default=1000, help="set number of samples saved in each file")
+    parser.add_argument("--jobs", default=-1, help="set parallelization, -1=use all cores")
+
+    args = parser.parse_args(args)
+    return args
+
+
 if __name__ == "__main__":
-    args = parser.parse_args()
+    args = parse_args()
     print(args)
     main(args)
 
