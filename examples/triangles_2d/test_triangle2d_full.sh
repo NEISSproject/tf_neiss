@@ -12,9 +12,17 @@ done
 echo "#####"
 echo "Generate validation data:"
 echo "#####"
-
+# run make dataset twice to 'test' arg-parser. 'test' because there is no verification of if dataset is valid,
+# only if there is no error thrown
 python -u generate_train_data_2d_triangle_TFR.py \
-    --to_log_file --mode "val" --data_id triangle2d_32_dummy
+    --to_log_file True --mode "val" --data_id triangle2d_32_dummy
+
+for file in "./lists/triangle2d_32_dummy_val.lst" "./data/triangle2d_316_dummy"; do
+    if [ -f "$file" ]; then
+        rm "$file"
+    fi
+done
+python -u python_test_triangle2d_full.py
 
 echo "#####"
 echo "Train model on validation data:"

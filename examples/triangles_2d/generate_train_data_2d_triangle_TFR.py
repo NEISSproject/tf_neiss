@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import multiprocessing
 import os
@@ -14,24 +15,40 @@ from tf_neiss.log import get_commit_id
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # or any {'0', '1', '2'} set tensorflow logleve 2=warning
 os.environ["CUDA_VISIBLE_DEVICES"] = ""  # hide all gpu's until needed
 
-# ========
-flags.define_string("data_id", "magic_synthetic_dataset", "select a name unique name for the dataset")
-flags.define_boolean("to_log_file", False,
-                     "if set redirect stdout & stderr to this file in data/syntetic_data/<data_id>/<log-file.log>")
-flags.define_boolean("complex_phi", False, "use values for a and b not depending from phi")
-flags.define_string("mode", "val", "select 'val' or 'train'")
-flags.define_list('files_train_val', int, "[int(train_files), int(val_files)]",
-                  'files to generate for train data/val data', default_value=[1000, 10])
-flags.define_integer("samples_per_file", 1000, "set number of samples saved in each file")
-flags.define_integer("jobs", -1, "set number of samples saved in each file")
-flags.FLAGS.parse_flags()
+# # ========
+# flags.define_string("data_id", "magic_synthetic_dataset", "select a name unique name for the dataset")
+# flags.define_boolean("to_log_file", False,
+#                      "if set redirect stdout & stderr to this file in data/syntetic_data/<data_id>/<log-file.log>")
+# flags.define_boolean("complex_phi", False, "use values for a and b not depending from phi")
+# flags.define_string("mode", "val", "select 'val' or 'train'")
+# flags.define_list('files_train_val', int, "[int(train_files), int(val_files)]",
+#                   'files to generate for train data/val data', default_value=[1000, 10])
+# flags.define_integer("samples_per_file", 1000, "set number of samples saved in each file")
+# flags.define_integer("jobs", -1, "set number of samples saved in each file")
+# flags.FLAGS.parse_flags()
 
-if __name__ == "__main__":
-    main_data_out = "data/synthetic_data/{}".format(flags.FLAGS.data_id)
+parser = argparse.ArgumentParser("Parser of 'generate train data 2d triangle TFR'")
+parser.add_argument("--data_id", default="magic_synthetic_dataset", type=str,
+                    help="a unique id for the dataset, the folder name where it is saved")
+parser.add_argument("--to_log_file", default=False, type=bool,
+                    help="if set redirect stdout & stderr to this file in data/syntetic_data/<data_id>/<log-file.log>")
+parser.add_argument("--complex_phi", default=False, type=bool, help="use values for a and b not depending from phi")
+parser.add_argument("--mode", default="val", type=str, help="select 'val' or 'train'")
+parser.add_argument('--files_train_val', type=list,
+                    help="e.g.[int(train_files), int(val_files)] files to generate for train data/val data",
+                    default=[1000, 10])
+parser.add_argument("--samples_per_file", default=1000, help="set number of samples saved in each file")
+parser.add_argument("--jobs", default=-1, help="set parallelization, -1=use all cores")
+
+
+def main(args):
+    arg_flags = args
+    print(arg_flags.data_id)
+    main_data_out = "data/synthetic_data/{}".format(arg_flags.data_id)
     original_out = sys.stdout
     original_err = sys.stderr
-    if flags.FLAGS.to_log_file:
-        logfile_path = os.path.join(main_data_out, "log_{}_{}.txt".format(flags.FLAGS.data_id, flags.FLAGS.mode))
+    if arg_flags.to_log_file:
+        logfile_path = os.path.join(main_data_out, "log_{}_{}.txt".format(arg_flags.data_id, arg_flags.mode))
         if not os.path.isdir(os.path.dirname(logfile_path)):
             os.makedirs(os.path.dirname(logfile_path))
         print("redirect messages to: {}".format(logfile_path))
@@ -43,16 +60,16 @@ if __name__ == "__main__":
     commit_id, repos_path = get_commit_id(os.path.realpath(__file__))
     print("{} commit-id: {}".format(repos_path, commit_id))
     print("tf-version: {}".format(tf.__version__))
-    if flags.FLAGS.mode == "val":
-        number_of_files = flags.FLAGS.files_train_val[1]
+    if arg_flags.mode == "val":
+        number_of_files = arg_flags.files_train_val[1]
     else:
-        number_of_files = flags.FLAGS.files_train_val[0]
+        number_of_files = arg_flags.files_train_val[0]
     print("number of files: {}".format(number_of_files))
 
     flags.print_flags()
     timer1 = time.time()
     dphi = 0.1
-    complex_phi = flags.FLAGS.complex_phi
+    complex_phi = arg_flags.complex_phi
     # complex_phi = False
 
     if not complex_phi:
@@ -68,13 +85,13 @@ if __name__ == "__main__":
         b = np.concatenate((zeros_arr, range_arr, range_arr), axis=0)
         phi_arr = a + 1.0j * b
 
-    samples_per_file = flags.FLAGS.samples_per_file
-    data_folder = os.path.join(main_data_out, flags.FLAGS.mode)
+    samples_per_file = arg_flags.samples_per_file
+    data_folder = os.path.join(main_data_out, arg_flags.mode)
     data_points_per_sample = phi_arr.shape[0]
-    bytes_to_write = 4 * 3 * data_points_per_sample * number_of_files * flags.FLAGS.samples_per_file / 1024 ** 2
+    bytes_to_write = 4 * 3 * data_points_per_sample * number_of_files * arg_flags.samples_per_file / 1024 ** 2
     print("data points per sample: {}".format(data_points_per_sample))
     print("estimated space in MB: {:0.1f}".format(bytes_to_write))
-    print("{} samples to generate.".format(number_of_files * flags.FLAGS.samples_per_file))
+    print("{} samples to generate.".format(number_of_files * arg_flags.samples_per_file))
     if not os.path.isdir(data_folder):
         os.makedirs(data_folder)
     filename_list = list([os.path.join(data_folder, "data_{:07d}.tfr".format(x)) for x in range(number_of_files)])
@@ -83,12 +100,12 @@ if __name__ == "__main__":
 
     t2d_saver_obj = tfr_helper.Triangle2dSaver(epsilon=0.001, phi_arr=phi_arr, x_sorted=True,
                                                samples_per_file=samples_per_file, complex_phi=complex_phi)
-    # save_TFR_x = partial(tfr_helper.save_tfr_t2d, samples=flags.FLAGS.samples_per_file)
+    # save_TFR_x = partial(tfr_helper.save_tfr_t2d, samples=arg_flags.samples_per_file)
     # pool = multiprocessing.Pool(8)
-    if flags.FLAGS.jobs <= 0:
+    if arg_flags.jobs <= 0:
         jobs = os.cpu_count()
     else:
-        jobs = flags.FLAGS.jobs
+        jobs = arg_flags.jobs
     pool = multiprocessing.Pool(jobs)
     pool.map(t2d_saver_obj.save_file, filename_list)
     pool.close()
@@ -117,12 +134,12 @@ if __name__ == "__main__":
     print("  Done.")
 
     print("write list...")
-    out_list_name = "lists/{}_{}.lst".format(flags.FLAGS.data_id, flags.FLAGS.mode)
+    out_list_name = "lists/{}_{}.lst".format(arg_flags.data_id, arg_flags.mode)
     with open(out_list_name, "w") as file_object:
         file_object.writelines([str(x) + "\n" for x in filename_list])
     print("date+id: {}".format(datetime.datetime.now().strftime('%Y%m-%d%H-%M%S-') + str(uuid.uuid4())))
     print("  Done.")
-    if flags.FLAGS.to_log_file:
+    if arg_flags.to_log_file:
         sys.stdout = original_out
         sys.stderr = original_err
     print("Finished.")
@@ -151,3 +168,10 @@ if __name__ == "__main__":
     #     # Creates batches by randomly shuffling tensors
     #     images, labels = tf.train.shuffle_batch([image, label], batch_size=10, capacity=30, num_threads=1,
     #                                             min_after_dequeue=10)
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    print(args)
+    main(args)
+
