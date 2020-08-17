@@ -1,8 +1,6 @@
 import tensorflow as tf
-
 from model_fn.graph_base import GraphBase
 import model_fn.model_fn_nlp.util_nlp.transformer as bert_graphs
-import model_fn.util_model_fn.optimizer as optimizers
 
 class NERwithMiniBERT(GraphBase):
     def __init__(self, params):
