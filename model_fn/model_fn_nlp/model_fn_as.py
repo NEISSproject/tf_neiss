@@ -1,6 +1,9 @@
 import tensorflow as tf
 import model_fn.model_fn_nlp.util_nlp.graphs_as as graphs
 from model_fn.model_fn_base import ModelBase
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ModelAS(ModelBase):
     def __init__(self, params):
@@ -10,6 +13,10 @@ class ModelAS(ModelBase):
         self._vocab_size = params['tok_size']
         self.metrics["eval"]["accuracy"] = tf.keras.metrics.Accuracy()
         self.metrics["train"]["accuracy"] = tf.keras.metrics.Accuracy()
+        self.metrics["eval"]["precision"] = tf.keras.metrics.Precision()
+        self.metrics["train"]["precision"] = tf.keras.metrics.Precision()
+        self.metrics["eval"]["recall"] = tf.keras.metrics.Recall()
+        self.metrics["train"]["recall"] = tf.keras.metrics.Recall()
 
     def get_graph(self):
         return getattr(graphs, self._params['flags'].graph)(self._params)
@@ -58,6 +65,34 @@ class ModelAS(ModelBase):
         tgt_as=targets['tgt_as']
         pred_ids=tf.cast(tf.round(tf.reduce_mean(tf.cast(graph_out_dict['pred_ids'],tf.float32),axis=-1)),tf.int32)
         self.metrics[self._mode]["accuracy"].update_state(tgt_as[:, 0], pred_ids)
+        self.metrics[self._mode]["precision"].update_state(tgt_as[:, 0], pred_ids)
+        self.metrics[self._mode]["recall"].update_state(tgt_as[:, 0], pred_ids)
+
+    def write_tensorboard(self):
+        """Write metrics to tensorboard-file (it's called after each epoch) and reset tf.keras.metrics"""
+        with self.summary_writer[self._mode].as_default():
+            if self._mode_training:
+                tf.summary.scalar("learning_rate",
+                                  self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations - 1),
+                                  step=self.optimizer.iterations - 1)
+                tf.summary.scalar("learning_rate", self.custom_optimizer.get_current_learning_rate(self.optimizer.iterations),
+                                  step=self.optimizer.iterations)
+            else:
+                # add
+                pass
+
+            precision=self.metrics[self._mode]['precision'].result()
+            recall=self.metrics[self._mode]['recall'].result()
+            tf.summary.scalar("f1",2*precision*recall/(precision+recall) , step=self.graph_train.global_epoch)
+
+            logger.info("Reset all metics {}".format(self._mode))
+            for metric in self.metrics[self._mode]:
+                logger.debug("Write metric: {} with tf.name: {}".format(metric, self.metrics[self._mode][metric].name))
+                tf.summary.scalar(metric, self.metrics[self._mode][metric].result(), step=self.graph_train.global_epoch)
+                logger.debug("Reset metric: {} with tf.name: {}".format(metric, self.metrics[self._mode][metric].name))
+                self.metrics[self._mode][metric].reset_states()
+
+
 
 
 

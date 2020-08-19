@@ -16,7 +16,7 @@ class InputFnAS(InputFnNLPBase):
 
         self._tokenizer_de=tfds.features.text.SubwordTextEncoder.load_from_file(self._flags.tokenizer)
         self._tok_vocab_size=self._tokenizer_de.vocab_size
-        self._max_token_length=320
+        self._max_token_length=80
 
 
 
@@ -43,7 +43,7 @@ class InputFnAS(InputFnNLPBase):
     def shorten_tokenlist_if_necessary(self,tokenlist):
         if len(tokenlist)>self._max_token_length:
             #use a special token to mark the break, don't use self._tok_vocab_size+2 because in pre-training it was the mask token
-            return tokenlist[:int(self._max_token_length/2)]+[self._tok_vocab_size+3]+tokenlist[-int(self._max_token_length/2):]
+            return tokenlist[:int(self._max_token_length/2)]+tokenlist[-int(self._max_token_length/2):]
         else:
             return tokenlist
 

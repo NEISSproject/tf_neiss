@@ -26,7 +26,7 @@ class TrainerAS(TrainerBase):
         super(TrainerAS, self).__init__()
         self._input_fn_generator = InputFnAS(self._flags)
         self._input_fn_generator.print_params()
-        self._params['tok_size'] = self._input_fn_generator._tok_vocab_size+4
+        self._params['tok_size'] = self._input_fn_generator._tok_vocab_size+3
         self._model_class = getattr(models, self._flags.model_type)
         # self._graph.info()
 
