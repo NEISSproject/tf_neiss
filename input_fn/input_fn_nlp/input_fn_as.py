@@ -69,7 +69,10 @@ class InputFnAS(InputFnNLPBase):
         tokenlistone=self.shorten_tokenlist_if_necessary(self._tokenizer_de.encode(textblockone))
         tokenlisttwo=self.shorten_tokenlist_if_necessary(self._tokenizer_de.encode(textblocktwo))
         text_index_list=[self._tok_vocab_size]+tokenlistone+[self._tok_vocab_size+1]+tokenlisttwo+[self._tok_vocab_size+1]
-
+        if self._flags.predict_mode:
+            inputs = {'text':[text_index_list]}
+            tgts = {'tgt_as': [tar_as]}
+            return inputs, tgts
         inputs = {'text':text_index_list}
         tgts = {'tgt_as': tar_as}
 
@@ -94,11 +97,12 @@ class InputFnAS(InputFnNLPBase):
                     element['othertextblock']=self.get_textblock_from_another_article(element['art_id'],articlelist)
                     yield self._parse_fn(element)
 
-    def generator_fn_predict(self):
-        for fname in self._fnames:
+    def generator_fn_predict(self,fname):
             with open(fname, 'r',encoding="utf-8") as f:
                 articlelist = json.load(f)
+                random.shuffle(articlelist)
                 for element in articlelist:
+                    element['othertextblock']=self.get_textblock_from_another_article(element['art_id'],articlelist)
                     yield self._parse_fn(element)
 
     def bool_decision(self):
