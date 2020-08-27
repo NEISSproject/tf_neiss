@@ -13,6 +13,8 @@ flags.define_string('tags', 'ner_uja.txt', 'path to tag vocabulary')
 flags.define_string('tokenizer', '../../../data/tokenizer/tigertokenizer_de', 'path to tokenizer for encoder')
 flags.define_string('bert_dir', '../../../bertmodels/bertdeminiwu', 'path to pretrained bert_model checkpoint')
 flags.define_string('bert_graph', 'BERTMini', 'class name of pretrained bert graph architecture')
+flags.define_integer('max_tokens_text_part', 80,
+                     'maximal number of tokens in a text part of the input function')
 flags.define_string('graph', 'NERwithMiniBERT', 'class name of graph architecture')
 flags.define_list('add_types', str, 'types that are add features int or float',
                   "", [])

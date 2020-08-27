@@ -16,7 +16,7 @@ class InputFnAS(InputFnNLPBase):
 
         self._tokenizer_de=tfds.features.text.SubwordTextEncoder.load_from_file(self._flags.tokenizer)
         self._tok_vocab_size=self._tokenizer_de.vocab_size
-        self._max_token_length=80
+        self._max_token_length=self._flags.max_tokens_text_part
 
 
 
