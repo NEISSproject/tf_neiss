@@ -16,6 +16,7 @@ class InputFnBertNSP(InputFnNLPBase):
 
         self._tokenizer_de=tfds.features.text.SubwordTextEncoder.load_from_file(self._flags.tokenizer)
         self._tok_vocab_size=self._tokenizer_de.vocab_size
+        self._max_words_text_path=self._flags.max_words_text_part
 
 
 
@@ -47,8 +48,8 @@ class InputFnBertNSP(InputFnNLPBase):
         splitindex=random.randint(4,nofirstwords-5)
         textpartone=firstinputlist[:splitindex]
         #maximal text sequence length is 40
-        if len(textpartone)>40:
-            textpartone=textpartone[len(textpartone)-40:]
+        if len(textpartone)>self._max_words_text_path:
+            textpartone=textpartone[len(textpartone)-self._max_words_text_path:]
         if take_connected_parts:
             textparttwo=firstinputlist[splitindex:]
             tar_nsp=[1]
@@ -58,8 +59,8 @@ class InputFnBertNSP(InputFnNLPBase):
             splitindex=random.randint(0,nosecondwords-5)
             textparttwo=secondinputlist[splitindex:]
             tar_nsp=[0]
-        if len(textparttwo)>40:
-            textparttwo=textparttwo[:40]
+        if len(textparttwo)>self._max_words_text_path:
+            textparttwo=textparttwo[:self._max_words_text_path]
         textpartone=' '.join(textpartone)
         textparttwo=' '.join(textparttwo)
         first_enc_sentence=self._tokenizer_de.encode(textpartone)
