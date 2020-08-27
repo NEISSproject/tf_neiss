@@ -61,10 +61,12 @@ class TrainerAS(TrainerBase):
             self._fnames.extend(f.read().splitlines())
         for fname in self._fnames:
             prediction_list=[]
-            for (input_features, targets) in self._input_fn_generator.generator_fn_predict(fname):
+            for (input_features, targets, input_element) in self._input_fn_generator.generator_fn_predict(fname):
                 input_features['text']=tf.cast(input_features['text'],tf.int32)
                 pred_out_dict = call_graph(input_features, targets)
-                prediction_list.append({'tgt':targets['tgt_as'][0][0],'prob':str(pred_out_dict['probs'][0][1].numpy())})
+                input_element['tgt']=targets['tgt_as'][0][0]
+                input_element['prob']=str(pred_out_dict['probs'][0][1].numpy())
+                prediction_list.append(input_element)
             with open(join(self._flags.predict_dir,'pred_'+basename(fname)),'w+') as g:
                 json.dump(prediction_list,g)
 

@@ -72,7 +72,7 @@ class InputFnAS(InputFnNLPBase):
         if self._flags.predict_mode:
             inputs = {'text':[text_index_list]}
             tgts = {'tgt_as': [tar_as]}
-            return inputs, tgts
+            return inputs, tgts, {'textblock1':textblockone,'textblock2':textblocktwo}
         inputs = {'text':text_index_list}
         tgts = {'tgt_as': tar_as}
 
