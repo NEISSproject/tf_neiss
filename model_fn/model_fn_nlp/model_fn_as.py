@@ -17,6 +17,8 @@ class ModelAS(ModelBase):
         self.metrics["train"]["precision"] = tf.keras.metrics.Precision()
         self.metrics["eval"]["recall"] = tf.keras.metrics.Recall()
         self.metrics["train"]["recall"] = tf.keras.metrics.Recall()
+        self.metrics["eval"]["roc"] = tf.keras.metrics.AUC()
+        self.metrics["train"]["roc"] = tf.keras.metrics.AUC()
 
     def get_graph(self):
         return getattr(graphs, self._params['flags'].graph)(self._params)
@@ -67,6 +69,9 @@ class ModelAS(ModelBase):
         self.metrics[self._mode]["accuracy"].update_state(tgt_as[:, 0], pred_ids)
         self.metrics[self._mode]["precision"].update_state(tgt_as[:, 0], pred_ids)
         self.metrics[self._mode]["recall"].update_state(tgt_as[:, 0], pred_ids)
+        probs=tf.reduce_mean(tf.transpose(graph_out_dict['probabilities'],[0,2,1]),axis=-1)
+        self.metrics[self._mode]["roc"].update_state(tgt_as[:, 0], probs[:, 1])
+
 
     def write_tensorboard(self):
         """Write metrics to tensorboard-file (it's called after each epoch) and reset tf.keras.metrics"""
@@ -84,7 +89,6 @@ class ModelAS(ModelBase):
             precision=self.metrics[self._mode]['precision'].result()
             recall=self.metrics[self._mode]['recall'].result()
             tf.summary.scalar("f1",2*precision*recall/(precision+recall) , step=self.graph_train.global_epoch)
-
             logger.info("Reset all metics {}".format(self._mode))
             for metric in self.metrics[self._mode]:
                 logger.debug("Write metric: {} with tf.name: {}".format(metric, self.metrics[self._mode][metric].name))

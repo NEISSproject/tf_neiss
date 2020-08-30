@@ -78,6 +78,18 @@ class InputFnAS(InputFnNLPBase):
 
         return inputs, tgts
 
+    def _parse_fn_predict(self, element):
+
+        dummy_target=[1]
+        textblockone=element['text1']
+        textblocktwo=element['text2']
+        tokenlistone=self.shorten_tokenlist_if_necessary(self._tokenizer_de.encode(textblockone))
+        tokenlisttwo=self.shorten_tokenlist_if_necessary(self._tokenizer_de.encode(textblocktwo))
+        text_index_list=[self._tok_vocab_size]+tokenlistone+[self._tok_vocab_size+1]+tokenlisttwo+[self._tok_vocab_size+1]
+        inputs = {'text':[text_index_list]}
+        tgts = {'tgt_as': [dummy_target]}
+        return inputs, tgts, element
+
     def get_textblock_from_another_article(self,art_id,articlelist):
         cur_art_id=art_id
         while cur_art_id==art_id:
@@ -104,6 +116,21 @@ class InputFnAS(InputFnNLPBase):
                 for element in articlelist:
                     element['othertextblock']=self.get_textblock_from_another_article(element['art_id'],articlelist)
                     yield self._parse_fn(element)
+
+    def generator_fn_predict2(self,fname):
+            with open(fname, 'r',encoding="utf-8") as f:
+                nsplist = json.load(f)
+            predictlist=[]
+            for page in nsplist['page']:
+                textblocklist=[]
+                for article in page['articles']:
+                    for text_block in article['text_blocks']:
+                        textblocklist.append({'tbid':text_block['text_block_id'],'text':text_block['text'].replace('\n',' ')})
+                for i in range(len(textblocklist)-1):
+                    for j in range(len(textblocklist)-i-1):
+                        predictlist.append({'pid':page['page_file'],'tb_id0':textblocklist[i]['tbid'],'text1':textblocklist[i]['text'],'tb_id1':textblocklist[j+i+1]['tbid'],'text2':textblocklist[j+i+1]['text']})
+            for element in predictlist:
+                yield self._parse_fn_predict(element)
 
     def bool_decision(self):
         return random.choice([True, False])

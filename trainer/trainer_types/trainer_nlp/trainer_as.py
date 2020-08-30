@@ -21,6 +21,7 @@ flags.define_list('add_types', str, 'types that are add features int or float',
 flags.define_integer('buffer', 1,
                      'number of training samples hold in the cache. (effects shuffling)')
 flags.define_boolean('predict_mode', False, 'If and only if true the prediction will be accomplished')
+flags.define_boolean('predict_features', True, 'If and only if true the prediction is for page_files')
 flags.define_string('predict_list', None, '.lst-file specifying the dataset used for prediction')
 flags.define_string('predict_dir', '', 'path/to/file where to write the prediction')
 flags.FLAGS.parse_flags()
@@ -71,11 +72,64 @@ class TrainerAS(TrainerBase):
                 json.dump(prediction_list,g)
 
 
+    def predict2(self):
+
+        print("Predict:")
+        if not self._model:
+            self._model = self._model_class(self._params)
+        if not self._model.graph_eval:
+            self._model.graph_eval = self._model.get_graph()
+        if not self._checkpoint_obj_val:
+            self._checkpoint_obj_val = tf.train.Checkpoint(model=self._model.graph_eval)
+
+        self._checkpoint_obj_val.restore(tf.train.latest_checkpoint(self._flags.checkpoint_dir))
+        call_graph_signature = self._model.get_call_graph_signature()
+
+        @tf.function(input_signature=call_graph_signature)
+        def call_graph(input_features_, targets_):
+            self._model.graph_eval._graph_out = self._model.graph_eval(input_features_, training=False)
+            self._model.graph_eval._graph_out['probs']=tf.reduce_mean(tf.transpose(self._model.graph_eval._graph_out['probabilities'],[0,2,1]),axis=-1)
+            return self._model.graph_eval._graph_out
+
+
+        self._input_fn_generator._mode = 'predict'
+        self._fnames = []
+        with open(self._flags.predict_list, 'r') as f:
+            self._fnames.extend(f.read().splitlines())
+        for fname in self._fnames:
+            pagedic={}
+            index=0
+            for (input_features, targets, input_element) in self._input_fn_generator.generator_fn_predict2(fname):
+                index+=1
+                input_features['text']=tf.cast(input_features['text'],tf.int32)
+                pred_out_dict = call_graph(input_features, targets)
+
+                if input_element['pid'] in pagedic.keys():
+                    if input_element['tb_id0'] in pagedic[input_element['pid']]['edge_features'].keys():
+                        pagedic[input_element['pid']]['edge_features'][input_element['tb_id0']][input_element['tb_id1']]=[pred_out_dict['probs'][0][1].numpy().item()]
+                    else:
+                        pagedic[input_element['pid']]['edge_features'][input_element['tb_id0']]={input_element['tb_id1']:[pred_out_dict['probs'][0][1].numpy().item()]}
+                    if input_element['tb_id1'] in pagedic[input_element['pid']]['edge_features'].keys():
+                        pagedic[input_element['pid']]['edge_features'][input_element['tb_id1']][input_element['tb_id0']]=[pred_out_dict['probs'][0][1].numpy().item()]
+                    else:
+                        pagedic[input_element['pid']]['edge_features'][input_element['tb_id1']]={input_element['tb_id0']:[pred_out_dict['probs'][0][1].numpy().item()]}
+                else:
+                    pagedic[input_element['pid']]={'edge_features':{input_element['tb_id0']:{input_element['tb_id1']:[pred_out_dict['probs'][0][1].numpy().item()]},
+                                               input_element['tb_id1']:{input_element['tb_id0']:[pred_out_dict['probs'][0][1].numpy().item()]}}}
+                if index%1000==0:
+                    print(index)
+            with open(join(self._flags.predict_dir,'pred_'+basename(fname)),'w+') as g:
+                json.dump(pagedic,g)
+
+
 
 if __name__ == '__main__':
     # logging.basicConfig(level=logging.INFO)
     trainer = TrainerAS()
     if flags.FLAGS.predict_mode :
-        trainer.predict()
+        if flags.FLAGS.predict_features:
+            trainer.predict2()
+        else:
+            trainer.predict()
     else:
         trainer.train()
