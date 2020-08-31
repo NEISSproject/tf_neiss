@@ -48,24 +48,33 @@ class InputFnAS(InputFnNLPBase):
             return tokenlist
 
     def _parse_fn(self, element):
-        take_from_same_article=self.bool_decision()
         switch_order=self.bool_decision()
-        if take_from_same_article:
+        if 'tgt' in element.keys():
             if switch_order:
                 textblockone=element['textblock2']
                 textblocktwo=element['textblock1']
             else:
                 textblockone=element['textblock1']
                 textblocktwo=element['textblock2']
-            tar_as=[1]
+            tar_as=[element['tgt']]
         else:
-            if switch_order:
-                textblockone=element['textblock2']
-                textblocktwo=element['othertextblock']
+            take_from_same_article=self.bool_decision()
+            if take_from_same_article:
+                if switch_order:
+                    textblockone=element['textblock2']
+                    textblocktwo=element['textblock1']
+                else:
+                    textblockone=element['textblock1']
+                    textblocktwo=element['textblock2']
+                tar_as=[1]
             else:
-                textblockone=element['textblock1']
-                textblocktwo=element['othertextblock']
-            tar_as=[0]
+                if switch_order:
+                    textblockone=element['textblock2']
+                    textblocktwo=element['othertextblock']
+                else:
+                    textblockone=element['textblock1']
+                    textblocktwo=element['othertextblock']
+                tar_as=[0]
         tokenlistone=self.shorten_tokenlist_if_necessary(self._tokenizer_de.encode(textblockone))
         tokenlisttwo=self.shorten_tokenlist_if_necessary(self._tokenizer_de.encode(textblocktwo))
         text_index_list=[self._tok_vocab_size]+tokenlistone+[self._tok_vocab_size+1]+tokenlisttwo+[self._tok_vocab_size+1]
@@ -106,7 +115,8 @@ class InputFnAS(InputFnNLPBase):
                 articlelist = json.load(f)
                 random.shuffle(articlelist)
                 for element in articlelist:
-                    element['othertextblock']=self.get_textblock_from_another_article(element['art_id'],articlelist)
+                    if 'tgt' not in element.keys():
+                        element['othertextblock']=self.get_textblock_from_another_article(element['art_id'],articlelist)
                     yield self._parse_fn(element)
 
     def generator_fn_predict(self,fname):
