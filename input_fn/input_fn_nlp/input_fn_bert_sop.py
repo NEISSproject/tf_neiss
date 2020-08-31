@@ -18,6 +18,7 @@ class InputFnBertSOP(InputFnNLPBase):
 
         self._tokenizer_de=tfds.features.text.SubwordTextEncoder.load_from_file(self._flags.tokenizer)
         self._tok_vocab_size=self._tokenizer_de.vocab_size
+        self._max_words_text_part=self._flags.max_words_text_part
 
 
 
@@ -42,8 +43,25 @@ class InputFnBertSOP(InputFnNLPBase):
         self._defaults = input_defaults, tgt_defaults
 
     def _parse_fn(self, sentences):
-        first_enc_sentence=self._tokenizer_de.encode(sentences[0])
-        sec_enc_sentence=self._tokenizer_de.encode(sentences[1])
+        if self._flags.segment_train:
+            inputlist=sentences.split(' ')
+            nowords=len(inputlist)
+            #minimal word number is 10
+            splitindex=random.randint(4,nowords-5)
+            textpartone=inputlist[:splitindex]
+            #maximal text sequence length is 40
+            if len(textpartone)>self._max_words_text_part:
+                textpartone=textpartone[len(textpartone)-self._max_words_text_part:]
+            textparttwo=inputlist[splitindex:]
+            if len(textparttwo)>self._max_words_text_part:
+                textparttwo=textparttwo[:self._max_words_text_part]
+            textpartone=' '.join(textpartone)
+            textparttwo=' '.join(textparttwo)
+            first_enc_sentence=self._tokenizer_de.encode(textpartone)
+            sec_enc_sentence=self._tokenizer_de.encode(textparttwo)
+        else:
+            first_enc_sentence=self._tokenizer_de.encode(sentences[0])
+            sec_enc_sentence=self._tokenizer_de.encode(sentences[1])
         first_mask_enc_sentence,first_masked_index_list=self.mask_enc_sentence(first_enc_sentence)
         sec_mask_enc_sentence,sec_masked_index_list=self.mask_enc_sentence(sec_enc_sentence)
         #Add CLS-Tag and SEP-Tag
