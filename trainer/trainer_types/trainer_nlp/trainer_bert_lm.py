@@ -21,6 +21,7 @@ flags.define_integer('sum_train_batches', 1,
                      'use the average of the gradients sum_train_batches to apply the gradients')
 flags.define_boolean('predict_mode', False, 'If and only if true the prediction will be accomplished')
 flags.define_string('bert_checkpoint_dir', '', 'Checkpoint to save pure bert model information in.')
+flags.define_boolean('rel_pos_enc',False, 'If and only if True the bert uses a relative positional encoding instead of an absolute one')
 flags.FLAGS.parse_flags()
 
 

@@ -1,13 +1,16 @@
 import tensorflow as tf
 
 from model_fn.graph_base import GraphBase
-from model_fn.model_fn_nlp.util_nlp.transformer import Encoder,BERTMini
+from model_fn.model_fn_nlp.util_nlp.transformer import Encoder,BERTMini,BERTMiniRelPos
 
 class BERTMiniSOP(GraphBase):
     def __init__(self, params):
         super(BERTMiniSOP, self).__init__(params)
         self._flags = params['flags']
-        self.bert=BERTMini(params)
+        if self._flags.rel_pos_enc:
+            self.bert=BERTMiniRelPos(params)
+        else:
+            self.bert=BERTMini(params)
         self._tracked_layers["last_layer_mlm"] = tf.keras.layers.Dense(params['tok_size'])
         self._tracked_layers["last_layer_so"] = tf.keras.layers.Dense(2)
 
@@ -20,6 +23,7 @@ class BERTMiniSOP(GraphBase):
         sop_pred_ids = tf.argmax(input=sop_logits, axis=2, output_type=tf.int32)
         self._graph_out = {"mlm_pred_ids": mlm_pred_ids, 'mlm_logits': mlm_logits, "sop_pred_ids": sop_pred_ids, 'sop_logits': sop_logits,'masked_index':inputs["masked_index"]}
         return self._graph_out
+
 
 class BERTMiniASSpecial(GraphBase):
     def __init__(self, params):

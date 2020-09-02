@@ -26,10 +26,10 @@ def positional_encoding(position, d_model):
 
 
 class EncoderLayer(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, dff, rate=0.1):
+    def __init__(self, d_model, num_heads, dff, rate=0.1,with_rel_pos=False,max_rel_pos=0):
         super(EncoderLayer, self).__init__()
 
-        self.mha = MultiHeadAttention(d_model, num_heads)
+        self.mha = MultiHeadAttention(d_model, num_heads,with_rel_pos=with_rel_pos,max_rel_pos=max_rel_pos)
         self.ffn1 = tf.keras.layers.Dense(dff, activation='relu')  # (batch_size, seq_len, dff)
         self.ffn2 = tf.keras.layers.Dense(d_model)  # (batch_size, seq_len, d_model)
 
@@ -57,17 +57,19 @@ class EncoderLayer(tf.keras.layers.Layer):
 
 class Encoder(tf.keras.layers.Layer):
     def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size,
-                 maximum_position_encoding, rate=0.1):
+                 maximum_position_encoding, rate=0.1,with_rel_pos=False,max_rel_pos=0):
         super(Encoder, self).__init__()
 
         self.d_model = d_model
         self.num_layers = num_layers
 
         self.embedding = tf.keras.layers.Embedding(input_vocab_size, d_model)
-        self.pos_encoding = positional_encoding(maximum_position_encoding,
+        self.abs_pos_enc = not with_rel_pos
+        if self.abs_pos_enc:
+            self.pos_encoding = positional_encoding(maximum_position_encoding,
                                                 self.d_model)
 
-        self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
+        self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate,with_rel_pos=with_rel_pos,max_rel_pos=max_rel_pos)
                            for _ in range(num_layers)]
 
         self.dropout = tf.keras.layers.Dropout(rate)
@@ -80,7 +82,8 @@ class Encoder(tf.keras.layers.Layer):
         # adding embedding and position encoding.
         x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        x += self.pos_encoding[:, :seq_len, :]
+        if self.abs_pos_enc:
+            x += self.pos_encoding[:, :seq_len, :]
 
         # x = self.dropout(x, training=training)
 
@@ -218,6 +221,74 @@ class BERTMini(GraphBase):
         self._d_model = 512
         self._num_heads = 8
         self._dff = 512
+        self._vocab_size = params['tok_size']
+        self._pos_enc_max = 20000
+        self._rate = 0.1
+
+        self._tracked_layers["encoder"] = Encoder(self._num_layers, self._d_model, self._num_heads, self._dff,
+                                                  self._vocab_size, self._pos_enc_max, self._rate)
+
+
+    def call(self, inputs, training=None, mask=None):
+        inp = inputs["text"]
+
+        enc_padding_mask = self.create_padding_mask_trans(inp)
+
+        enc_output = self._tracked_layers["encoder"]({'x': inp, 'mask': enc_padding_mask},
+                                                     training)  # (batch_size, inp_seq_len, d_model)
+
+        self._graph_out = {'enc_output': enc_output}
+        return self._graph_out
+
+
+    def create_padding_mask_trans(self, seq):
+        seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
+        # add extra dimensions to add the padding
+        # to the attention logits.
+        return seq[:, tf.newaxis, tf.newaxis, :]
+
+class BERTMiniRelPos(GraphBase):
+    def __init__(self, params):
+        super(BERTMiniRelPos, self).__init__(params)
+        self._flags = params['flags']
+        self._num_layers = 6
+        self._d_model = 512
+        self._num_heads = 8
+        self._dff = 512
+        self._vocab_size = params['tok_size']
+        self._rate = 0.1
+        self._with_rel_pos=True
+        self._pos_enc_max = 80
+        self._tracked_layers["encoder"] = Encoder(self._num_layers, self._d_model, self._num_heads, self._dff,
+                                                  self._vocab_size, self._pos_enc_max, self._rate,self._with_rel_pos,self._pos_enc_max)
+
+
+    def call(self, inputs, training=None, mask=None):
+        inp = inputs["text"]
+
+        enc_padding_mask = self.create_padding_mask_trans(inp)
+
+        enc_output = self._tracked_layers["encoder"]({'x': inp, 'mask': enc_padding_mask},
+                                                     training)  # (batch_size, inp_seq_len, d_model)
+
+        self._graph_out = {'enc_output': enc_output}
+        return self._graph_out
+
+
+    def create_padding_mask_trans(self, seq):
+        seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
+        # add extra dimensions to add the padding
+        # to the attention logits.
+        return seq[:, tf.newaxis, tf.newaxis, :]
+
+class BERTExperimental(GraphBase):
+    def __init__(self, params):
+        super(BERTExperimental, self).__init__(params)
+        self._flags = params['flags']
+        self._num_layers = 8
+        self._d_model = 512
+        self._num_heads = 8
+        self._dff = 2048
         self._vocab_size = params['tok_size']
         self._pos_enc_max = 20000
         self._rate = 0.1

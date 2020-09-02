@@ -24,6 +24,7 @@ flags.define_integer('max_token_text_part', 80,
 flags.define_boolean('segment_train', False,'If and only if True the training is done with text segments and not with sentences')
 flags.define_boolean('predict_mode', False, 'If and only if true the prediction will be accomplished')
 flags.define_string('bert_checkpoint_dir', '', 'Checkpoint to save pure bert model information in.')
+flags.define_boolean('rel_pos_enc',False, 'If and only if True the bert uses a relative positional encoding instead of an absolute one')
 flags.FLAGS.parse_flags()
 
 
