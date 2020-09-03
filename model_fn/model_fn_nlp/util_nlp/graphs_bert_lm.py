@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from model_fn.graph_base import GraphBase
-from model_fn.model_fn_nlp.util_nlp.transformer import Encoder,AlbertEncoder,BERTMini
+from model_fn.model_fn_nlp.util_nlp.transformer import Encoder,AlbertEncoder,BERTMini,BERTMiniRelPos
 
 class BERTMiniLMold(GraphBase):
     def __init__(self, params):
@@ -43,7 +43,10 @@ class BERTMiniLM(GraphBase):
         super(BERTMiniLM, self).__init__(params)
 
         self._vocab_size = params['tok_size']
-        self.bert=BERTMini(params)
+        if self._flags.rel_pos_enc:
+            self.bert=BERTMiniRelPos(params)
+        else:
+            self.bert=BERTMini(params)
 
 
         self._tracked_layers["last_layer"] = tf.keras.layers.Dense(self._vocab_size)

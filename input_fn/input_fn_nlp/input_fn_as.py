@@ -124,7 +124,8 @@ class InputFnAS(InputFnNLPBase):
                 articlelist = json.load(f)
                 random.shuffle(articlelist)
                 for element in articlelist:
-                    element['othertextblock']=self.get_textblock_from_another_article(element['art_id'],articlelist)
+                    if 'tgt' not in element.keys():
+                        element['othertextblock']=self.get_textblock_from_another_article(element['art_id'],articlelist)
                     yield self._parse_fn(element)
 
     def generator_fn_predict2(self,fname):
