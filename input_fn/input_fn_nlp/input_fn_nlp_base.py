@@ -16,6 +16,7 @@ class InputFnNLPBase(InputFnBase):
         self._defaults = None
         self._shuffle = True
         self._fnames = []
+        self._train_dataset_cache = None
 
     def get_shapes_types_defaults(self):
         pass
@@ -52,7 +53,10 @@ class InputFnNLPBase(InputFnBase):
                 # print(f.read().splitlines())
                 self._fnames.extend(f.read().splitlines())
         random.shuffle(self._fnames)
-        return self.generateDataSet(True)
+        if self._train_dataset_cache is None:
+            self._train_dataset_cache=self.generateDataSet(True)
+        return self._train_dataset_cache
+        #return self.generateDataSet(True)
 
     def get_input_fn_val(self, image_preproc_thread_count=None):
         self._mode = 'val'
