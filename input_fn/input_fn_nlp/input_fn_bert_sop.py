@@ -81,18 +81,12 @@ class InputFnBertSOP(InputFnNLPBase):
         return inputs, tgts
 
     def generator_fn(self):
-        for fname in self._fnames:
-            with open(fname, 'r',encoding="utf-8") as f:
-                soplist = json.load(f)
-                for element in soplist:
-                    yield self._parse_fn(element)
+        for element in self._worklist:
+            yield self._parse_fn(element)
 
     def generator_fn_predict(self):
-        for fname in self._fnames:
-            with open(fname, 'r',encoding="utf-8") as f:
-                soplist = json.load(f)
-                for element in soplist:
-                    yield self._parse_fn(element)
+        for element in self._worklist:
+            yield self._parse_fn(element)
 
     def switch_sentences(self):
         return random.choice([True, False])

@@ -104,6 +104,9 @@ class InputFnNER(InputFnNLPBase):
                 # print("Yield Sentence")
                 for i in range(len(training_data)):
                     yield self._parse_fn(training_data[i])
+        for i in range(len(self._worklist)):
+            yield self._parse_fn(self._worklist[i])
+
 
     def generator_fn_predict(self, fname):
         with open(fname) as f:

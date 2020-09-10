@@ -1,4 +1,5 @@
 import random
+import json
 
 import tensorflow as tf
 
@@ -53,6 +54,12 @@ class InputFnNLPBase(InputFnBase):
                 # print(f.read().splitlines())
                 self._fnames.extend(f.read().splitlines())
         random.shuffle(self._fnames)
+        self._worklist=[]
+        for fname in self._fnames:
+            if fname.endswith('json'):
+                with open(fname, 'r',encoding="utf-8") as f:
+                    trainlist = json.load(f)
+                self._worklist.extend(trainlist)
         if self._train_dataset_cache is None:
             self._train_dataset_cache=self.generateDataSet(True)
         return self._train_dataset_cache
@@ -61,10 +68,15 @@ class InputFnNLPBase(InputFnBase):
     def get_input_fn_val(self, image_preproc_thread_count=None):
         self._mode = 'val'
         self._fnames = []
-        # print("start val")
 
         with open(self._flags.val_list, 'r') as f:
             self._fnames.extend(f.read().splitlines())
+        self._worklist=[]
+        for fname in self._fnames:
+            if fname.endswith('json'):
+                with open(fname, 'r',encoding="utf-8") as f:
+                    vallist = json.load(f)
+                self._worklist.extend(vallist)
         return self.generateDataSet(False)
 
     def get_input_fn_predict(self):
@@ -72,4 +84,10 @@ class InputFnNLPBase(InputFnBase):
         self._fnames = []
         with open(self._flags.predict_list, 'r') as f:
             self._fnames.extend(f.read().splitlines())
+        self._worklist=[]
+        for fname in self._fnames:
+            if fname.endswith('json'):
+                with open(fname, 'r',encoding="utf-8") as f:
+                    predlist = json.load(f)
+                self._worklist.extend(predlist)
         return self.generateDataSet(False)
