@@ -126,7 +126,7 @@ class TrainerAS(TrainerBase):
                                                tb_id1:{tb_id0:prob}}}
                     if index%10000==0:
                         ende = time.time()
-                        print(index,start,ende,ende-start)
+                        print(index,ende-start)
                         start= time.time()
             with open(join(self._flags.predict_dir,'pred_'+basename(fname)),'w+') as g:
                 json.dump(pagedic,g,indent=4)
