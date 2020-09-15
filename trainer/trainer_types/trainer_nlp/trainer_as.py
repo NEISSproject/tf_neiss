@@ -124,8 +124,6 @@ class TrainerAS(TrainerBase):
                         ende = time.time()
                         print(index,start,ende,ende-start)
                         start= time.time()
-                if index>5000:
-                    break
             with open(join(self._flags.predict_dir,'pred_'+basename(fname)),'w+') as g:
                 json.dump(pagedic,g,indent=4)
 
