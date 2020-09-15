@@ -108,19 +108,23 @@ class TrainerAS(TrainerBase):
 
                 for i in range(len(input_element['pid'])):
                     index+=1
-                    if input_element['pid'][i].numpy().item().decode('utf-8') in pagedic.keys():
-                        if input_element['tb_id0'][i].numpy().item().decode('utf-8') in pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'].keys():
-                            pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'][input_element['tb_id0'][i].numpy().item().decode('utf-8')][input_element['tb_id1'][i].numpy().item().decode('utf-8')]=[pred_out_dict['probs'][i][1].numpy().item()]
+                    pid=input_element['pid'][i].numpy().item().decode('utf-8')
+                    tb_id0=input_element['tb_id0'][i].numpy().item().decode('utf-8')
+                    tb_id1=input_element['tb_id1'][i].numpy().item().decode('utf-8')
+                    prob=[pred_out_dict['probs'][i][1].numpy().item()]
+                    if pid in pagedic.keys():
+                        if tb_id0 in pagedic[pid]['edge_features'].keys():
+                            pagedic[pid]['edge_features'][tb_id0][tb_id1]=prob
                         else:
-                            pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'][input_element['tb_id0'][i].numpy().item().decode('utf-8')]={input_element['tb_id1'][i].numpy().item().decode('utf-8'):[pred_out_dict['probs'][i][1].numpy().item()]}
-                        if input_element['tb_id1'][i].numpy().item().decode('utf-8') in pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'].keys():
-                            pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'][input_element['tb_id1'][i].numpy().item().decode('utf-8')][input_element['tb_id0'][i].numpy().item().decode('utf-8')]=[pred_out_dict['probs'][i][1].numpy().item()]
+                            pagedic[pid]['edge_features'][tb_id0]={tb_id1:prob}
+                        if tb_id1 in pagedic[pid]['edge_features'].keys():
+                            pagedic[pid]['edge_features'][tb_id1][tb_id0]=prob
                         else:
-                            pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'][input_element['tb_id1'][i].numpy().item().decode('utf-8')]={input_element['tb_id0'][i].numpy().item().decode('utf-8'):[pred_out_dict['probs'][i][1].numpy().item()]}
+                            pagedic[pid]['edge_features'][tb_id1]={tb_id0:prob}
                     else:
-                        pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]={'edge_features':{input_element['tb_id0'][i].numpy().item().decode('utf-8'):{input_element['tb_id1'][i].numpy().item().decode('utf-8'):[pred_out_dict['probs'][i][1].numpy().item()]},
-                                               input_element['tb_id1'][i].numpy().item().decode('utf-8'):{input_element['tb_id0'][i].numpy().item().decode('utf-8'):[pred_out_dict['probs'][i][1].numpy().item()]}}}
-                    if index%1000==0:
+                        pagedic[pid]={'edge_features':{tb_id0:{tb_id1:prob},
+                                               tb_id1:{tb_id0:prob}}}
+                    if index%10000==0:
                         ende = time.time()
                         print(index,start,ende,ende-start)
                         start= time.time()
