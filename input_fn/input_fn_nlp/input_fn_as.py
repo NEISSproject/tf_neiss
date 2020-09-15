@@ -13,6 +13,7 @@ class InputFnAS(InputFnNLPBase):
         super(InputFnAS, self).__init__(flags)
         print("start init input fct")
         self.get_shapes_types_defaults()
+        self.get_shapes_types_defaults_predict()
 
         self._tokenizer_de=tfds.features.text.SubwordTextEncoder.load_from_file(self._flags.tokenizer)
         self._tok_vocab_size=self._tokenizer_de.vocab_size
@@ -39,6 +40,30 @@ class InputFnAS(InputFnNLPBase):
         self._shapes = input_shapes, tgt_shapes
         self._types = input_types, tgt_types
         self._defaults = input_defaults, tgt_defaults
+
+    def get_shapes_types_defaults_predict(self):
+
+        input_shapes = {'text': [None]}
+
+        tgt_shapes = {'tgt_as':[None]}
+
+        el_shapes = {'pid':[None],'tb_id0':[None],'tb_id1':[None]}
+
+        input_types = {'text': tf.int32}
+
+        tgt_types = {'tgt_as':tf.int32}
+
+        el_types = {'pid':tf.string,'tb_id0':tf.string,'tb_id1':tf.string}
+
+        input_defaults = {'text': 0}
+
+        tgt_defaults = {'tgt_as':0}
+
+        el_defaults = {'pid':'-','tb_id0':'-','tb_id1':'-'}
+
+        self._shapes_predict = input_shapes, tgt_shapes, el_shapes
+        self._types_predict = input_types, tgt_types,el_types
+        self._defaults_predict = input_defaults, tgt_defaults, el_defaults
 
     def shorten_tokenlist_if_necessary(self,tokenlist):
         if len(tokenlist)>self._max_token_length:
@@ -87,6 +112,25 @@ class InputFnAS(InputFnNLPBase):
 
         return inputs, tgts
 
+    def generateDataSetPredict(self):
+
+        dataset = tf.data.Dataset.from_generator(self.generator_fn_predict2,
+                                                     output_shapes=self._shapes_predict, output_types=self._types_predict)
+        dataset = (dataset
+                       .padded_batch(self._flags.val_batch_size, self._shapes_predict, self._defaults_predict)
+                       .prefetch(1))
+
+        return dataset
+
+    def get_input_fn_predict2(self,fname):
+        self._mode = 'predict'
+        self._fnames = [fname]
+        if fname.endswith('json'):
+            with open(fname, 'r',encoding="utf-8") as f:
+                self._worklist = json.load(f)
+
+        return self.generateDataSetPredict()
+
     def _parse_fn_predict(self, element):
 
         dummy_target=[1]
@@ -95,9 +139,10 @@ class InputFnAS(InputFnNLPBase):
         tokenlistone=self.shorten_tokenlist_if_necessary(self._tokenizer_de.encode(textblockone))
         tokenlisttwo=self.shorten_tokenlist_if_necessary(self._tokenizer_de.encode(textblocktwo))
         text_index_list=[self._tok_vocab_size]+tokenlistone+[self._tok_vocab_size+1]+tokenlisttwo+[self._tok_vocab_size+1]
-        inputs = {'text':[text_index_list]}
-        tgts = {'tgt_as': [dummy_target]}
-        return inputs, tgts, element
+        inputs = {'text':text_index_list}
+        tgts = {'tgt_as': dummy_target}
+        elems ={'pid':[element['pid']],'tb_id0':[element['tb_id0']],'tb_id1':[element['tb_id1']]}
+        return inputs, tgts, elems
 
     def get_textblock_from_another_article(self,art_id,articlelist):
         cur_art_id=art_id
@@ -125,9 +170,8 @@ class InputFnAS(InputFnNLPBase):
                         element['othertextblock']=self.get_textblock_from_another_article(element['art_id'],articlelist)
                     yield self._parse_fn(element)
 
-    def generator_fn_predict2(self,fname):
-            with open(fname, 'r',encoding="utf-8") as f:
-                nsplist = json.load(f)
+    def generator_fn_predict2(self):
+            nsplist = self._worklist
             predictlist=[]
             for page in nsplist['page']:
                 textblocklist=[]

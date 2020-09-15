@@ -72,7 +72,7 @@ class TrainerAS(TrainerBase):
                 json.dump(prediction_list,g)
 
 
-    def predict2(self):
+    def predict2_batch(self):
 
         print("Predict:")
         if not self._model:
@@ -99,25 +99,33 @@ class TrainerAS(TrainerBase):
         for fname in self._fnames:
             pagedic={}
             index=0
-            for (input_features, targets, input_element) in self._input_fn_generator.generator_fn_predict2(fname):
-                index+=1
+            import time
+            start= time.time()
+            for (input_features, targets, input_element) in self._input_fn_generator.get_input_fn_predict2(fname):
+
                 input_features['text']=tf.cast(input_features['text'],tf.int32)
                 pred_out_dict = call_graph(input_features, targets)
 
-                if input_element['pid'] in pagedic.keys():
-                    if input_element['tb_id0'] in pagedic[input_element['pid']]['edge_features'].keys():
-                        pagedic[input_element['pid']]['edge_features'][input_element['tb_id0']][input_element['tb_id1']]=[pred_out_dict['probs'][0][1].numpy().item()]
+                for i in range(len(input_element['pid'])):
+                    index+=1
+                    if input_element['pid'][i].numpy().item().decode('utf-8') in pagedic.keys():
+                        if input_element['tb_id0'][i].numpy().item().decode('utf-8') in pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'].keys():
+                            pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'][input_element['tb_id0'][i].numpy().item().decode('utf-8')][input_element['tb_id1'][i].numpy().item().decode('utf-8')]=[pred_out_dict['probs'][i][1].numpy().item()]
+                        else:
+                            pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'][input_element['tb_id0'][i].numpy().item().decode('utf-8')]={input_element['tb_id1'][i].numpy().item().decode('utf-8'):[pred_out_dict['probs'][i][1].numpy().item()]}
+                        if input_element['tb_id1'][i].numpy().item().decode('utf-8') in pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'].keys():
+                            pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'][input_element['tb_id1'][i].numpy().item().decode('utf-8')][input_element['tb_id0'][i].numpy().item().decode('utf-8')]=[pred_out_dict['probs'][i][1].numpy().item()]
+                        else:
+                            pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]['edge_features'][input_element['tb_id1'][i].numpy().item().decode('utf-8')]={input_element['tb_id0'][i].numpy().item().decode('utf-8'):[pred_out_dict['probs'][i][1].numpy().item()]}
                     else:
-                        pagedic[input_element['pid']]['edge_features'][input_element['tb_id0']]={input_element['tb_id1']:[pred_out_dict['probs'][0][1].numpy().item()]}
-                    if input_element['tb_id1'] in pagedic[input_element['pid']]['edge_features'].keys():
-                        pagedic[input_element['pid']]['edge_features'][input_element['tb_id1']][input_element['tb_id0']]=[pred_out_dict['probs'][0][1].numpy().item()]
-                    else:
-                        pagedic[input_element['pid']]['edge_features'][input_element['tb_id1']]={input_element['tb_id0']:[pred_out_dict['probs'][0][1].numpy().item()]}
-                else:
-                    pagedic[input_element['pid']]={'edge_features':{input_element['tb_id0']:{input_element['tb_id1']:[pred_out_dict['probs'][0][1].numpy().item()]},
-                                               input_element['tb_id1']:{input_element['tb_id0']:[pred_out_dict['probs'][0][1].numpy().item()]}}}
-                if index%1000==0:
-                    print(index)
+                        pagedic[input_element['pid'][i].numpy().item().decode('utf-8')]={'edge_features':{input_element['tb_id0'][i].numpy().item().decode('utf-8'):{input_element['tb_id1'][i].numpy().item().decode('utf-8'):[pred_out_dict['probs'][i][1].numpy().item()]},
+                                               input_element['tb_id1'][i].numpy().item().decode('utf-8'):{input_element['tb_id0'][i].numpy().item().decode('utf-8'):[pred_out_dict['probs'][i][1].numpy().item()]}}}
+                    if index%1000==0:
+                        ende = time.time()
+                        print(index,start,ende,ende-start)
+                        start= time.time()
+                if index>5000:
+                    break
             with open(join(self._flags.predict_dir,'pred_'+basename(fname)),'w+') as g:
                 json.dump(pagedic,g,indent=4)
 
@@ -128,7 +136,7 @@ if __name__ == '__main__':
     trainer = TrainerAS()
     if flags.FLAGS.predict_mode :
         if flags.FLAGS.predict_features:
-            trainer.predict2()
+            trainer.predict2_batch()
         else:
             trainer.predict()
     else:
