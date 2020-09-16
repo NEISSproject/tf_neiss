@@ -24,6 +24,8 @@ flags.define_boolean('predict_mode', False, 'If and only if true the prediction 
 flags.define_boolean('predict_features', True, 'If and only if true the prediction is for page_files')
 flags.define_string('predict_list', None, '.lst-file specifying the dataset used for prediction')
 flags.define_string('predict_dir', '', 'path/to/file where to write the prediction')
+flags.define_integer('max_tb_per_page_prediction', 250,
+                     'defines the maximal allowed number of textblocks on a single page, such that a prediction will be made for this page')
 flags.FLAGS.parse_flags()
 
 
@@ -99,9 +101,42 @@ class TrainerAS(TrainerBase):
         for fname in self._fnames:
             pagedic={}
             index=0
+            prob_default=0.5
             import time
             start= time.time()
-            for (input_features, targets, input_element) in self._input_fn_generator.get_input_fn_predict2(fname):
+            with open(fname, 'r',encoding="utf-8") as f:
+                raw_data = json.load(f)
+            predictlist=[]
+            for page in raw_data['page']:
+                textblocklist=[]
+                for article in page['articles']:
+                    for text_block in article['text_blocks']:
+                        textblocklist.append({'tbid':text_block['text_block_id'],'text':text_block['text'].replace('\n',' ')})
+                if len(textblocklist)<= self._flags.max_tb_per_page_prediction:
+                    for i in range(len(textblocklist)-1):
+                        for j in range(len(textblocklist)-i-1):
+                            predictlist.append({'pid':page['page_file'],'tb_id0':textblocklist[i]['tbid'],'text1':textblocklist[i]['text'],'tb_id1':textblocklist[j+i+1]['tbid'],'text2':textblocklist[j+i+1]['text']})
+                else:
+                    for i in range(len(textblocklist)-1):
+                        for j in range(len(textblocklist)-i-1):
+                            pid=page['page_file']
+                            tb_id0=textblocklist[i]['tbid']
+                            tb_id1=textblocklist[j+i+1]['tbid']
+                            if pid in pagedic.keys():
+                                if tb_id0 in pagedic[pid]['edge_features'].keys():
+                                    pagedic[pid]['edge_features'][tb_id0][tb_id1]=prob_default
+                                else:
+                                    pagedic[pid]['edge_features'][tb_id0]={tb_id1:prob_default}
+                                if tb_id1 in pagedic[pid]['edge_features'].keys():
+                                    pagedic[pid]['edge_features'][tb_id1][tb_id0]=prob_default
+                                else:
+                                    pagedic[pid]['edge_features'][tb_id1]={tb_id0:prob_default}
+                            else:
+                                pagedic[pid]={'edge_features':{tb_id0:{tb_id1:prob_default},
+                                               tb_id1:{tb_id0:prob_default}}}
+
+
+            for (input_features, targets, input_element) in self._input_fn_generator.get_input_fn_predict2(predictlist):
 
                 input_features['text']=tf.cast(input_features['text'],tf.int32)
                 pred_out_dict = call_graph(input_features, targets)

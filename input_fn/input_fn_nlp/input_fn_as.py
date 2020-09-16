@@ -122,13 +122,9 @@ class InputFnAS(InputFnNLPBase):
 
         return dataset
 
-    def get_input_fn_predict2(self,fname):
+    def get_input_fn_predict2(self,predictlist):
         self._mode = 'predict'
-        self._fnames = [fname]
-        if fname.endswith('json'):
-            with open(fname, 'r',encoding="utf-8") as f:
-                self._worklist = json.load(f)
-
+        self._worklist=predictlist
         return self.generateDataSetPredict()
 
     def _parse_fn_predict(self, element):
@@ -171,18 +167,9 @@ class InputFnAS(InputFnNLPBase):
                     yield self._parse_fn(element)
 
     def generator_fn_predict2(self):
-            nsplist = self._worklist
-            predictlist=[]
-            for page in nsplist['page']:
-                textblocklist=[]
-                for article in page['articles']:
-                    for text_block in article['text_blocks']:
-                        textblocklist.append({'tbid':text_block['text_block_id'],'text':text_block['text'].replace('\n',' ')})
-                for i in range(len(textblocklist)-1):
-                    for j in range(len(textblocklist)-i-1):
-                        predictlist.append({'pid':page['page_file'],'tb_id0':textblocklist[i]['tbid'],'text1':textblocklist[i]['text'],'tb_id1':textblocklist[j+i+1]['tbid'],'text2':textblocklist[j+i+1]['text']})
-            for element in predictlist:
-                yield self._parse_fn_predict(element)
+        for element in self._worklist:
+            yield self._parse_fn_predict(element)
+
 
     def bool_decision(self):
         return random.choice([True, False])
