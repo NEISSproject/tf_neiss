@@ -82,7 +82,8 @@ class InputFnBertSOP(InputFnNLPBase):
 
     def generator_fn(self):
         for element in self._worklist:
-            yield self._parse_fn(element)
+            if len(element.split(' '))>10:
+                yield self._parse_fn(element)
 
     def generator_fn_predict(self):
         for element in self._worklist:
