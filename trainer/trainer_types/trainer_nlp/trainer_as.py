@@ -101,7 +101,7 @@ class TrainerAS(TrainerBase):
         for fname in self._fnames:
             pagedic={}
             index=0
-            prob_default=0.5
+            prob_default=[0.5]
             import time
             start= time.time()
             with open(fname, 'r',encoding="utf-8") as f:
@@ -117,23 +117,7 @@ class TrainerAS(TrainerBase):
                         for j in range(len(textblocklist)-i-1):
                             predictlist.append({'pid':page['page_file'],'tb_id0':textblocklist[i]['tbid'],'text1':textblocklist[i]['text'],'tb_id1':textblocklist[j+i+1]['tbid'],'text2':textblocklist[j+i+1]['text']})
                 else:
-                    for i in range(len(textblocklist)-1):
-                        for j in range(len(textblocklist)-i-1):
-                            pid=page['page_file']
-                            tb_id0=textblocklist[i]['tbid']
-                            tb_id1=textblocklist[j+i+1]['tbid']
-                            if pid in pagedic.keys():
-                                if tb_id0 in pagedic[pid]['edge_features'].keys():
-                                    pagedic[pid]['edge_features'][tb_id0][tb_id1]=prob_default
-                                else:
-                                    pagedic[pid]['edge_features'][tb_id0]={tb_id1:prob_default}
-                                if tb_id1 in pagedic[pid]['edge_features'].keys():
-                                    pagedic[pid]['edge_features'][tb_id1][tb_id0]=prob_default
-                                else:
-                                    pagedic[pid]['edge_features'][tb_id1]={tb_id0:prob_default}
-                            else:
-                                pagedic[pid]={'edge_features':{tb_id0:{tb_id1:prob_default},
-                                               tb_id1:{tb_id0:prob_default}}}
+                    pagedic[page['page_file']]={'edge_features':{'default':prob_default}}
 
 
             for (input_features, targets, input_element) in self._input_fn_generator.get_input_fn_predict2(predictlist):
