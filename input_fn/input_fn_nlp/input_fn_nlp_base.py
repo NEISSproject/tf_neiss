@@ -60,6 +60,7 @@ class InputFnNLPBase(InputFnBase):
                 with open(fname, 'r',encoding="utf-8") as f:
                     trainlist = json.load(f)
                 self._worklist.extend(trainlist)
+        random.shuffle(self._worklist)
         if self._train_dataset_cache is None:
             self._train_dataset_cache=self.generateDataSet(True)
         return self._train_dataset_cache
