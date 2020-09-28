@@ -281,20 +281,20 @@ class BERTMiniRelPos(GraphBase):
         # to the attention logits.
         return seq[:, tf.newaxis, tf.newaxis, :]
 
-class BERTExperimental(GraphBase):
+class BERTMiniExp(GraphBase):
     def __init__(self, params):
-        super(BERTExperimental, self).__init__(params)
+        super(BERTMiniRelPos, self).__init__(params)
         self._flags = params['flags']
-        self._num_layers = 8
+        self._num_layers = 6
         self._d_model = 512
         self._num_heads = 8
         self._dff = 2048
         self._vocab_size = params['tok_size']
-        self._pos_enc_max = 20000
         self._rate = 0.1
-
+        self._with_rel_pos=True
+        self._pos_enc_max = 16
         self._tracked_layers["encoder"] = Encoder(self._num_layers, self._d_model, self._num_heads, self._dff,
-                                                  self._vocab_size, self._pos_enc_max, self._rate)
+                                                  self._vocab_size, self._pos_enc_max, self._rate,self._with_rel_pos,self._pos_enc_max)
 
 
     def call(self, inputs, training=None, mask=None):
