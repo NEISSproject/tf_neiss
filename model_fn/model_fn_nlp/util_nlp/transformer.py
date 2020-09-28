@@ -283,7 +283,7 @@ class BERTMiniRelPos(GraphBase):
 
 class BERTMiniExp(GraphBase):
     def __init__(self, params):
-        super(BERTMiniRelPos, self).__init__(params)
+        super(BERTMiniExp, self).__init__(params)
         self._flags = params['flags']
         self._num_layers = 6
         self._d_model = 512
