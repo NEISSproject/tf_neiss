@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from model_fn.graph_base import GraphBase
-from model_fn.model_fn_nlp.util_nlp.transformer import Encoder,BERTMini,BERTMiniRelPos,BERTMiniExp
+from model_fn.model_fn_nlp.util_nlp.transformer import Encoder,BERTMini,BERTMiniRelPos,BERTMiniRelPosDff
 
 class BERTMiniSOP(GraphBase):
     def __init__(self, params):
@@ -28,7 +28,7 @@ class BERTMiniSOPExp(GraphBase):
     def __init__(self, params):
         super(BERTMiniSOPExp, self).__init__(params)
         self._flags = params['flags']
-        self.bert=BERTMiniExp(params)
+        self.bert=BERTMiniRelPosDff(params)
         self._tracked_layers["last_layer_mlm"] = tf.keras.layers.Dense(params['tok_size'])
         self._tracked_layers["last_layer_so"] = tf.keras.layers.Dense(2)
 
@@ -57,11 +57,28 @@ class BERTMiniASSpecial(GraphBase):
         self._graph_out = {'enc_output': bert_out['enc_output'], 'nsp_logits': nsp_logits}
         return self._graph_out
 
+class BERTMiniASSpecialRel(GraphBase):
+    def __init__(self, params):
+        super(BERTMiniASSpecialRel, self).__init__(params)
+        self._flags = params['flags']
+        self.bert=BERTMiniRelPosDff(params)
+        self._tracked_layers["last_layer_nsp"] = tf.keras.layers.Dense(2)
+
+    def call(self, inputs, training=None, mask=None):
+        bert_out = self.bert(inputs)
+
+        nsp_logits = self._tracked_layers["last_layer_nsp"](bert_out['enc_output'])  # (batch_size, tar_seq_len, 2)
+        self._graph_out = {'enc_output': bert_out['enc_output'], 'nsp_logits': nsp_logits}
+        return self._graph_out
+
 class BERTMiniNSPAS(GraphBase):
     def __init__(self, params):
         super(BERTMiniNSPAS, self).__init__(params)
         self._flags = params['flags']
-        self.bert=BERTMiniASSpecial(params)
+        if self._flags.rel_pos_enc:
+            self.bert=BERTMiniASSpecialRel(params)
+        else:
+            self.bert=BERTMiniASSpecial(params)
         self._tracked_layers["last_layer_mlm"] = tf.keras.layers.Dense(params['tok_size'])
 
     def call(self, inputs, training=None, mask=None):

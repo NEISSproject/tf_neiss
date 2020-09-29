@@ -281,9 +281,9 @@ class BERTMiniRelPos(GraphBase):
         # to the attention logits.
         return seq[:, tf.newaxis, tf.newaxis, :]
 
-class BERTMiniExp(GraphBase):
+class BERTMiniRelPosDff(GraphBase):
     def __init__(self, params):
-        super(BERTMiniExp, self).__init__(params)
+        super(BERTMiniRelPosDff, self).__init__(params)
         self._flags = params['flags']
         self._num_layers = 6
         self._d_model = 512
