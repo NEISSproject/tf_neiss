@@ -247,6 +247,39 @@ class BERTMini(GraphBase):
         # to the attention logits.
         return seq[:, tf.newaxis, tf.newaxis, :]
 
+class BERTMiniDff(GraphBase):
+    def __init__(self, params):
+        super(BERTMiniDff, self).__init__(params)
+        self._flags = params['flags']
+        self._num_layers = 6
+        self._d_model = 512
+        self._num_heads = 8
+        self._dff = 2048
+        self._vocab_size = params['tok_size']
+        self._rate = 0.1
+        self._pos_enc_max = 20000
+        self._tracked_layers["encoder"] = Encoder(self._num_layers, self._d_model, self._num_heads, self._dff,
+                                                  self._vocab_size, self._pos_enc_max, self._rate)
+
+
+    def call(self, inputs, training=None, mask=None):
+        inp = inputs["text"]
+
+        enc_padding_mask = self.create_padding_mask_trans(inp)
+
+        enc_output = self._tracked_layers["encoder"]({'x': inp, 'mask': enc_padding_mask},
+                                                     training)  # (batch_size, inp_seq_len, d_model)
+
+        self._graph_out = {'enc_output': enc_output}
+        return self._graph_out
+
+
+    def create_padding_mask_trans(self, seq):
+        seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
+        # add extra dimensions to add the padding
+        # to the attention logits.
+        return seq[:, tf.newaxis, tf.newaxis, :]
+
 class BERTMiniRelPos(GraphBase):
     def __init__(self, params):
         super(BERTMiniRelPos, self).__init__(params)

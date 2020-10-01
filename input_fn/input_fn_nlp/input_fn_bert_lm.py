@@ -20,6 +20,7 @@ class InputFnBertLM(InputFnNLPBase):
 
         self._tokenizer_de=tfds.features.text.SubwordTextEncoder.load_from_file(self._flags.tokenizer)
         self._tok_vocab_size=self._tokenizer_de.vocab_size
+        self._max_token_text_part=self._flags.max_token_text_part
 
 
 
@@ -43,8 +44,17 @@ class InputFnBertLM(InputFnNLPBase):
         self._types = input_types, tgt_types
         self._defaults = input_defaults, tgt_defaults
 
+    def shorten_if_necessary(self,enc_list):
+        listlen=len(enc_list)
+        if listlen<=self._max_token_text_part:
+            return enc_list
+        splitindex=random.randint(0,listlen-self._max_token_text_part)
+        shorter_list=enc_list[splitindex:splitindex+self._max_token_text_part]
+        return shorter_list
+
     def _parse_fn(self, sentence):
         enc_sentence=self._tokenizer_de.encode(sentence)
+        enc_sentence=self.shorten_if_necessary(enc_sentence)
         #Add SOS-Tag and EOS-Tag
         tar_real=[self._tok_vocab_size]+enc_sentence+[self._tok_vocab_size+1]
         masked_index_list=[0]
@@ -66,18 +76,13 @@ class InputFnBertLM(InputFnNLPBase):
         return inputs, tgts
 
     def generator_fn(self):
-        for fname in self._fnames:
-            with open(fname, 'r',encoding="utf-8") as f:
-                setlist=f.readlines()
-                for i in range(len(setlist)):
-                    yield self._parse_fn(setlist[i].replace('\n',''))
+        for element in self._worklist:
+            if len(element.split(' '))>10:
+                yield self._parse_fn(element)
 
     def generator_fn_predict(self):
-        for fname in self._fnames:
-            with open(fname, 'r',encoding="utf-8") as f:
-                setlist=f.readlines()
-                for i in range(len(setlist)):
-                    yield self._parse_fn(setlist[i].replace('\n',''))
+        for element in self._worklist:
+            yield self._parse_fn(element)
 
     def mask_word_index(self,word_index):
         prob=random.random()
