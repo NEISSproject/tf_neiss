@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from model_fn.graph_base import GraphBase
-from model_fn.model_fn_nlp.util_nlp.transformer import Encoder,AlbertEncoder,BERTMini,BERTMiniRelPos
+from model_fn.model_fn_nlp.util_nlp.transformer import Encoder,AlbertEncoder,BERTMini,BERTMiniRelPos,BERTMiniDff,BERTMiniRelPosDff
 
 class BERTMiniLMold(GraphBase):
     def __init__(self, params):
@@ -47,6 +47,33 @@ class BERTMiniLM(GraphBase):
             self.bert=BERTMiniRelPos(params)
         else:
             self.bert=BERTMini(params)
+
+
+        self._tracked_layers["last_layer"] = tf.keras.layers.Dense(self._vocab_size)
+        #self._tracked_layers["softmax"] = tf.keras.layers.Softmax()
+
+    def call(self, inputs, training=None, mask=None):
+        inp={}
+        inp['text'] = inputs["sentence"]
+        sentencelength = inputs["sentencelength"]
+        sentencelength = sentencelength[:, 0]
+
+        bert_out = self.bert(inp,training)  # (batch_size, inp_seq_len, d_model)
+        final_output = self._tracked_layers["last_layer"](bert_out['enc_output'])  # (batch_size, tar_seq_len, target_vocab_size)
+        pred_ids = tf.argmax(input=final_output, axis=2, output_type=tf.int32)
+        #probabilities = self._tracked_layers["softmax"](final_output)
+        self._graph_out = {"pred_ids": pred_ids, 'logits': final_output,'masked_index':inputs["masked_index"],"sentencelength": sentencelength}
+        return self._graph_out
+
+class BERTMiniLMDff(GraphBase):
+    def __init__(self, params):
+        super(BERTMiniLMDff, self).__init__(params)
+
+        self._vocab_size = params['tok_size']
+        if self._flags.rel_pos_enc:
+            self.bert=BERTMiniRelPosDff(params)
+        else:
+            self.bert=BERTMiniDff(params)
 
 
         self._tracked_layers["last_layer"] = tf.keras.layers.Dense(self._vocab_size)
