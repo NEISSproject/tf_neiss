@@ -17,8 +17,11 @@ flags.define_list('add_types', str, 'types that are add features int or float',
                   "", [])
 flags.define_integer('buffer', 1,
                      'number of training samples hold in the cache. (effects shuffling)')
+flags.define_boolean('segment_train', True,'If and only if True the training is done with text segments and not with sentences')
 flags.define_integer('max_words_text_part', 40,
-                     'maximal number of words in a text part of the input function')
+                     'maximal number of words in a text part of the input function (only used if segment train is used)')
+flags.define_integer('max_token_text_part', 320,
+                     'maximal number of tokens in a text part of the input function (only used if there is no segment train)')
 flags.define_boolean('predict_mode', False, 'If and only if true the prediction will be accomplished')
 flags.define_string('bert_checkpoint_dir', '', 'Checkpoint to save pure bert model information in.')
 flags.define_boolean('rel_pos_enc',False, 'If and only if True the bert uses a relative positional encoding instead of an absolute one')
