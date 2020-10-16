@@ -166,6 +166,103 @@ class InputFnNER(InputFnNLPBase):
         tgts = {'tgt': tar_real, 'targetmask': targetmask}
         return inputs, tgts
 
+    def _parse_text_part(self,training_data):
+        tags = []
+        tags_se = []  # list of (start, end) positions of the tag
+        sentence_string = ''
+        # run over all [[pseudo-word, tag], ...]
+        for j in range(len(training_data)):
+            # do not add a space before or after special characters
+            if j > 0 and training_data[j][0][0] not in "])}.,;:!?" and training_data[j - 1][0][0] not in "([{":
+                sentence_string = sentence_string + " "
+            start_len = len(sentence_string)
+            sentence_string = sentence_string + training_data[j][0]
+            end_len = len(sentence_string) - 1
+            # only add the tag to the list if it is not "O" class
+            if self._tag_string_mapper.get_channel(training_data[j][1]) != self._tag_string_mapper.get_oov_id():
+                tags.append(self._tag_string_mapper.get_channel(training_data[j][1]))
+                tags_se.append((start_len, end_len))
+
+        # encode the hole sentence in whole results in less tokens than encoding by word
+        enc_sentence = self._tokenizer_de.encode(sentence_string)
+
+        tokens_se = []  # list of (start, end) positions of the tokens (tag analog to tag_se)
+        enc_sentence_string = ''  # construct string from token list piece-wise to count start and end
+        for j in range(len(enc_sentence)):
+            start_len = len(enc_sentence_string)
+            enc_sentence_string = enc_sentence_string + self._tokenizer_de.decode([enc_sentence[j]])
+            end_len = len(enc_sentence_string) - 1
+            tokens_se.append((start_len, end_len))
+
+        # assign other class to all postions
+        tar_real = [self._tag_string_mapper.get_oov_id()] * len(enc_sentence)
+        # for each position in token-wise tag list check if a target need to be assigned
+        for j in range(len(tar_real)):
+            for idx, tag in enumerate(tags):
+                # if a token includes the start of a tag
+                if tokens_se[j][0] <= tags_se[idx][0] <= tokens_se[j][1]:
+                    # add tag without replacement
+                    tar_real[j] = tag
+                # if the token ends within a tag, may assign I-tag instead of B-tag
+                elif tags_se[idx][0] <= tokens_se[j][0] <= tags_se[idx][1]:
+                    # change b tag to i tag
+                    i_tag = self._tag_string_mapper.get_value(tag).replace("B-", "I-")
+                    tar_real[j] = self._tag_string_mapper.get_channel(i_tag)
+                # if tag is an I-tag and the token before is a single space assign the I-tag to the space token too
+                if self._tag_string_mapper.get_value(tar_real[j]).startswith("I-") and \
+                        self._tokenizer_de.decode([enc_sentence[j - 1]]) == " ":
+                    tar_real[j - 1] = tar_real[j]
+        return enc_sentence,tar_real
+
+    def _parse_fn_multi_sent(self, index,article):
+        enc_sentence, tar_real = self._parse_text_part(article[index])
+        lenprevious=0
+        lennext=0
+        enc_previous = []
+        tar_previous = []
+        enc_next = []
+        tar_next = []
+        if index>0:
+            previous=[]
+            for i in range(index):
+                previous.extend(article[i])
+            if len(previous)>self._flags.max_token_text_part:
+                previous=previous[len(previous)-self._flags.max_token_text_part:]
+            enc_previous, tar_previous = self._parse_text_part(previous)
+            lenprevious=len(tar_previous)
+        if index<len(article)-1:
+            next=[]
+            for i in range(len(article)-index-1):
+                next.extend(article[index+1+i])
+            if len(next)>self._flags.max_token_text_part:
+                next=next[:self._flags.max_token_text_part]
+            enc_next, tar_next = self._parse_text_part(next)
+            lennext=len(tar_next)
+        if lenprevious+len(tar_real)+lennext>self._flags.max_token_text_part:
+            restlength=self._flags.max_token_text_part-len(tar_real)
+            if lenprevious<restlength//2:
+                shortenlength=restlength-lenprevious
+                enc_next=enc_next[:shortenlength]
+                tar_next=tar_next[:shortenlength]
+            elif lennext<restlength//2:
+                shortenlength=restlength-lennext
+                if lenprevious>shortenlength:
+                    enc_previous=enc_previous[lenprevious-shortenlength:]
+                    tar_previous=tar_previous[lenprevious-shortenlength:]
+            else:
+                enc_next=enc_next[:restlength//2]
+                tar_next=tar_next[:restlength//2]
+                enc_previous=enc_previous[lenprevious-restlength//2:]
+                tar_previous=tar_previous[lenprevious-restlength//2:]
+
+        # Add SOS-Tag and EOS-Tag
+        enc_sentence = [self._tok_vocab_size] + enc_previous + [self._tok_vocab_size+1] + enc_sentence + [self._tok_vocab_size+1] + enc_next + [self._tok_vocab_size + 1]
+        targetmask = [0] + len(tar_previous) * [0] + [0] + len(tar_real) * [1] + [0] + len(tar_next) * [0] + [0]
+        tar_real = [self.get_num_tags()] + tar_previous + [self.get_num_tags()+1] + tar_real + [self.get_num_tags()+1] + tar_next + [self.get_num_tags() + 1]
+        inputs = {'sentence': enc_sentence}
+        tgts = {'tgt': tar_real, 'targetmask': targetmask}
+        return inputs, tgts
+
     def generator_fn(self):
         for fname in self._fnames:
             with open(fname) as f:
@@ -176,8 +273,13 @@ class InputFnNER(InputFnNLPBase):
                 else:
                     raise IOError("Invalid file extension in: '{}', only '.txt' and '.json' is supported".format(fname))
                 # print("Yield Sentence")
-                for i in range(len(training_data)):
-                    yield self._parse_fn(training_data[i])
+                if self._flags.multi_sent:
+                    for i in range(len(training_data)):
+                        yield self._parse_fn_multi_sent(i,training_data)
+
+                else:
+                    for i in range(len(training_data)):
+                        yield self._parse_fn(training_data[i])
 
     def load_txt_sentences(self, filename):
         with open(filename) as f:

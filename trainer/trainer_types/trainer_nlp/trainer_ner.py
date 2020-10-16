@@ -21,6 +21,9 @@ flags.define_integer('buffer', 1,
 flags.define_boolean('predict_mode', False, 'If and only if true the prediction will be accomplished')
 flags.define_string('predict_list', None, '.lst-file specifying the dataset used for prediction')
 flags.define_string('predict_dir', '', 'path/to/file where to write the prediction')
+flags.define_boolean('multi_sent',False,'use multisentence strategy when building samples')
+flags.define_integer('max_token_text_part', 320,
+                     'maximal number of tokens in a text part of the input function')
 flags.FLAGS.parse_flags()
 
 
