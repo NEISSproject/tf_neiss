@@ -107,17 +107,16 @@ class TrainerAS(TrainerBase):
             with open(fname, 'r',encoding="utf-8") as f:
                 raw_data = json.load(f)
             predictlist=[]
-            for page in raw_data['page']:
+            for page in raw_data.keys():
                 textblocklist=[]
-                for article in page['articles']:
-                    for text_block in article['text_blocks']:
-                        textblocklist.append({'tbid':text_block['text_block_id'],'text':text_block['text'].replace('\n',' ')})
+                for text_block in raw_data[page]:
+                    textblocklist.append({'tbid':text_block['text_block_id'],'text':text_block['text'].replace('\n',' ')})
                 if len(textblocklist)<= self._flags.max_tb_per_page_prediction:
                     for i in range(len(textblocklist)-1):
                         for j in range(len(textblocklist)-i-1):
-                            predictlist.append({'pid':page['page_file'],'tb_id0':textblocklist[i]['tbid'],'text1':textblocklist[i]['text'],'tb_id1':textblocklist[j+i+1]['tbid'],'text2':textblocklist[j+i+1]['text']})
+                            predictlist.append({'pid':page,'tb_id0':textblocklist[i]['tbid'],'text1':textblocklist[i]['text'],'tb_id1':textblocklist[j+i+1]['tbid'],'text2':textblocklist[j+i+1]['text']})
                 else:
-                    pagedic[page['page_file']]={'edge_features':{'default':prob_default}}
+                    pagedic[page]={'edge_features':{'default':prob_default}}
 
 
             for (input_features, targets, input_element) in self._input_fn_generator.get_input_fn_predict2(predictlist):
