@@ -194,8 +194,8 @@ if __name__ == '__main__':
     #print(x)
     y=[get_current_learning_rate(temp_learning_rate_schedule,x[i]) for i in range(len(x))]
     pylab.plot(x,y)
-    y=[get_current_learning_rate(comp_temp_learning_rate_schedule,x[i]) for i in range(len(x))]
-    pylab.plot(x,y)#,'co')
-    y=[get_current_learning_rate(comp2_temp_learning_rate_schedule,x[i]) for i in range(len(x))]
-    pylab.plot(x,y)
+    #y=[get_current_learning_rate(comp_temp_learning_rate_schedule,x[i]) for i in range(len(x))]
+    #pylab.plot(x,y)#,'co')
+    #y=[get_current_learning_rate(comp2_temp_learning_rate_schedule,x[i]) for i in range(len(x))]
+    #pylab.plot(x,y)
     pylab.show()

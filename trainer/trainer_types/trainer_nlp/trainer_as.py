@@ -147,7 +147,7 @@ class TrainerAS(TrainerBase):
                         print(index,ende-start)
                         start= time.time()
             with open(join(self._flags.predict_dir,'pred_'+basename(fname)),'w+') as g:
-                json.dump(pagedic,g,indent=4)
+                json.dump(pagedic,g)
 
 
 
