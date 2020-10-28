@@ -149,6 +149,13 @@ class InputFnBertNSP(InputFnNLPBase):
             textparttwo=' '.join(textparttwo)
             first_enc_sentence=self._tokenizer_de.encode(textpartone)
             sec_enc_sentence=self._tokenizer_de.encode(textparttwo)
+            #Check if it is too long
+            if len(first_enc_sentence)+len(sec_enc_sentence)>self._max_token_text_part:
+                half=int(self._max_token_text_part/2)
+                if len(first_enc_sentence)>half:
+                    first_enc_sentence=first_enc_sentence[len(first_enc_sentence)-half:]
+                if len(sec_enc_sentence)>half:
+                    sec_enc_sentence=sec_enc_sentence[:half]
         else:
             first_enc_sentence, sec_enc_sentence=self.build_two_sentence_segments(sentences,take_connected_parts)
             if take_connected_parts:
