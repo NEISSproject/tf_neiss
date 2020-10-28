@@ -17,6 +17,7 @@ class InputFnBertNSP(InputFnNLPBase):
         self._tokenizer_de=tfds.features.text.SubwordTextEncoder.load_from_file(self._flags.tokenizer)
         self._tok_vocab_size=self._tokenizer_de.vocab_size
         self._max_words_text_part=self._flags.max_words_text_part
+        self._max_token_text_part=self._flags.max_token_text_part
 
 
 
